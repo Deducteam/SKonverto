@@ -1,0 +1,14 @@
+name: "SKonverto"
+maintainer: ""
+author: ""
+homepage: ""
+bug-reports: ""
+license: ""
+dev-repo: "git+https://github.com/Deducteam/de-skolemizer.git"
+depends: [
+  "ocaml"
+  "dune"
+  "lambdapi"
+]
+build: [["dune" "build" "-p" name "-j" jobs]]
+install: ["dune" "install"]
