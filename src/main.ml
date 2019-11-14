@@ -1,3 +1,14 @@
+open Core
+open Extra
+
+(** [sig_of_file f] returns the signature of the file path [f]. *)
+let sig_of_file : string -> Sign.t = fun fname ->
+  let mp = Files.module_path fname in
+  begin try Compile.compile true mp
+    with
+        Console.Fatal(None, msg) -> Console.exit_with "%s" msg
+      | Console.Fatal(Some(p), msg) -> Console.exit_with "[%a] %s" Pos.print p msg end;
+  Files.PathMap.find mp Sign.(Timed.(!loaded))
 
 let spec =
   Arg.align []
