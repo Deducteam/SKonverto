@@ -18,5 +18,6 @@ jobs:
 
     - name: main
       run: |
+        ls
+        which make
         make
-        make install
