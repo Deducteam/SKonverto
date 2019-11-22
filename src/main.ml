@@ -18,5 +18,5 @@ let _ =
   let files = ref [] in
   Arg.parse spec (fun s -> files := s :: !files) usage;
   files := List.rev !files;
-  let process_file _ = () in
+  let process_file s = s |> sig_of_file |> Deskolem.test in
   List.iter process_file !files
