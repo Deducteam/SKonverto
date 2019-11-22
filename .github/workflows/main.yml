@@ -17,7 +17,4 @@ jobs:
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
 
     - name: main
-      run: |
-        ls
-        which make
-        make
+      run: make
