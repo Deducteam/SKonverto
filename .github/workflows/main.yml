@@ -1,0 +1,19 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: fangyi-zhou/actions-ocaml@v1
+      with:
+        ocaml_version: 4.07.1
+    - name: dependencies
+      run: opam install dune lambdapi timed
+    - name: main
+      run: |
+        make
+        make install
