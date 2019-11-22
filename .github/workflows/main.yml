@@ -12,7 +12,10 @@ jobs:
       with:
         ocaml_version: 4.07.1
     - name: Installing the last version of lambdapi
-      run: opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
+      run: |
+        opam install menhir dune bindlib.5.0.0 timed.1.0 earley.2.0.0 yojson cmdliner ppx_inline_test why3.1.2.0
+        opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
+
     - name: main
       run: |
         make
