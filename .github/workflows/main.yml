@@ -12,7 +12,7 @@ jobs:
       with:
         ocaml_version: 4.07.1
     - name: Installing the last version of lambdapi
-      run: opam -y pin add lambdapi https://github.com/Deducteam/lambdapi.git
+      run: opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
     - name: main
       run: |
         make
