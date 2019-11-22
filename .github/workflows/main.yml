@@ -1,4 +1,4 @@
-name: CI
+name: SKonverto CI
 
 on: [push]
 
@@ -11,12 +11,8 @@ jobs:
     - uses: fangyi-zhou/actions-ocaml@v1
       with:
         ocaml_version: 4.07.1
-    - name: using the last version of lambdapi
-      run: opam pin add lambdapi https://github.com/Deducteam/lambdapi.git
-    - name: dependencies
-      run: opam install dune lambdapi timed opam install dune odoc menhir yojson cmdliner bindlib.5.0.0 timed.1.0 earley.2.0.0 ppx_inline_test why3.1.2.0
-    - name: installing lambdapi
-      run: opam install lambdapi
+    - name: Installing the last version of lambdapi
+      run: opam -y pin add lambdapi https://github.com/Deducteam/lambdapi.git
     - name: main
       run: |
         make
