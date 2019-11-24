@@ -18,6 +18,6 @@ jobs:
       run: |
         opam install menhir dune bindlib.5.0.0 timed.1.0 earley.2.0.0 yojson cmdliner ppx_inline_test why3.1.2.0 -y
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
+        eval $(opam env)
     - name: main
-      run: eval $(opam env)
       run: make
