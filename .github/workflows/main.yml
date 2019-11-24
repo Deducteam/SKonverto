@@ -1,5 +1,4 @@
-name: SKonverto CI on ${{ matrix.operating-system }}, Ocaml Version ${{ matrix.ocaml-version }}
-
+name: SKonverto CI
 on: [push]
 
 jobs:
