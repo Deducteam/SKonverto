@@ -2,8 +2,8 @@ open Core
 open Terms
 open Timed
 
-(** [subst_inv t s x] replaces the term starting with the symbol [s] by a fresh
-    variable [x] in the term [t]. *)
+(** [subst_inv t s x] replaces all the subterms starting with the symbol [s] by
+    a fresh variable [x] in the term [t]. *)
 let rec subst_inv : term -> sym -> term Bindlib.var -> term =
   fun t s x ->
   let h, ts = Basics.get_args t in
