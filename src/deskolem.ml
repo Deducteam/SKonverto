@@ -4,33 +4,33 @@ open Timed
 
 (** [subst_inv s x t] replaces all the subterms starting with the symbol [s] by
     a fresh variable [x] in the term [t]. *)
-let rec subst_inv : sym -> term Bindlib.var -> term -> term =
-  fun s x t->
-  let h, ts = Basics.get_args t in
-  match h with
-  | Vari _
-  | Type
-  | Kind                      -> t
-  | Symb(s', _) when s == s'  -> Vari x
-  | Symb( _, _)               ->
-    Basics.add_args h (List.map (subst_inv s x) ts)
-  | Prod( a, b)               ->
-      let (v, b) = Bindlib.unbind b in
-      let sa = subst_inv s x a in
-      let sb = Bindlib.bind_var v (lift (subst_inv s x b)) in
-      Prod(sa, Bindlib.unbox sb)
-  | Abst( a, b)               ->
-      let (v, b) = Bindlib.unbind b in
-      let sa = subst_inv s x a in
-      let sb = Bindlib.bind_var v (lift (subst_inv s x b)) in
-      Abst(sa, Bindlib.unbox sb)
-  | Appl _                    -> assert false (* h could not be Appl. *)
-  | Meta _
-  | Patt _
-  | TEnv _
-  | Wild
-  | TRef _                    -> assert false (* is not handled in the encoding. *)
-
+let subst_inv : sym -> term Bindlib.var -> term -> term = fun s x ->
+  let rec subst t =
+    let h, ts = Basics.get_args t in
+    match h with
+    | Vari _
+    | Type
+    | Kind                      -> t
+    | Symb(s', _) when s == s'  -> Vari x
+    | Symb( _, _)               ->
+      Basics.add_args h (List.map subst ts)
+    | Prod( a, b)               ->
+        let (v, b) = Bindlib.unbind b in
+        let sa = subst a in
+        let sb = Bindlib.bind_var v (lift (subst b)) in
+        Prod(sa, Bindlib.unbox sb)
+    | Abst( a, b)               ->
+        let (v, b) = Bindlib.unbind b in
+        let sa = subst a in
+        let sb = Bindlib.bind_var v (lift (subst b)) in
+        Abst(sa, Bindlib.unbox sb)
+    | Appl _                    -> assert false (* h could not be Appl. *)
+    | Meta _
+    | Patt _
+    | TEnv _
+    | Wild
+    | TRef _                    -> assert false (* is not handled in the encoding. *)
+  in subst
 
 let skolem_symbol : Sign.t -> sym = fun sign ->
   Sign.builtin None Timed.(!(sign.sign_builtins)) "skolem_symbol"
