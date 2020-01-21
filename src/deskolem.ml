@@ -2,18 +2,16 @@ open Core
 open Terms
 open Timed
 
-(** [subst_inv s x t] replaces all the subterms starting with the symbol [s] by
-    a fresh variable [x] in the term [t]. *)
-let subst_inv : sym -> term Bindlib.var -> term -> term = fun s x ->
+(** [subst_inv fu x t] replaces all the subterms [fu] by a fresh variable [x] in
+    the term [t]. *)
+let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
   let rec subst t =
-    let h, ts = Basics.get_args t in
-    match h with
+    if Basics.eq t fu then Vari x else
+    match t with
     | Vari _
     | Type
     | Kind                      -> t
-    | Symb(s', _) when s == s'  -> Vari x
-    | Symb( _, _)               ->
-      Basics.add_args h (List.map subst ts)
+    | Symb(_, _)                -> t
     | Prod( a, b)               ->
         let (v, b) = Bindlib.unbind b in
         let sa = subst a in
@@ -24,7 +22,7 @@ let subst_inv : sym -> term Bindlib.var -> term -> term = fun s x ->
         let sa = subst a in
         let sb = Bindlib.bind_var v (lift (subst b)) in
         Abst(sa, Bindlib.unbox sb)
-    | Appl _                    -> assert false (* h could not be Appl. *)
+    | Appl( a, b)               -> Appl(subst a, subst b)
     | Meta _
     | Patt _
     | TEnv _
@@ -32,18 +30,35 @@ let subst_inv : sym -> term Bindlib.var -> term -> term = fun s x ->
     | TRef _                    -> assert false (* is not handled in the encoding. *)
   in subst
 
-let skolem_symbol : Sign.t -> sym = fun sign ->
-  Sign.builtin None Timed.(!(sign.sign_builtins)) "skolem_symbol"
+let frozen : term -> bool = fun t ->
+    Bindlib.is_closed (Bindlib.box t)
 
-let target_type : Sign.t -> sym = fun sign ->
-  Sign.builtin None Timed.(!(sign.sign_builtins)) "target_type"
+let rec display_frozen : term -> unit = fun t ->
+    match t with
+    | Vari _
+    | Type
+    | Kind                      -> ()
+    | Symb(_, _)                -> Console.out 1 "SYMB : %a@." Print.pp_term t
+    | Prod( a, b)               ->
+        let (_, b) = Bindlib.unbind b in
+        Console.out 1 "PROD : %a => %a@." Print.pp_term a Print.pp_term b
+    | Abst( a, b)               ->
+        let (_, b) = Bindlib.unbind b in
+        if frozen b then Console.out 1 "%a is FROOOOOOOZEN@." Print.pp_term b else Console.out 1 "%a is NOOOOOOOOO@." Print.pp_term b;
+        Console.out 1 "ABST : %a, %a@." Print.pp_term a Print.pp_term b
+    | Appl( a, b)               ->
+        Console.out 1 "APP : (%a) (%a)@." Print.pp_term a Print.pp_term b;
+        display_frozen a; display_frozen b
+    | Meta _
+    | Patt _
+    | TEnv _
+    | Wild
+    | TRef _                    -> assert false (* is not handled in the encoding. *)
 
-
+let existstype =
+    fun sign -> Sign.find sign "frozen"
 let test sign =
-  let sk_sym = skolem_symbol sign in
-  let target = target_type sign in
-  let fresh_var = Bindlib.new_var mkfree "z" in
-  let transformed = subst_inv sk_sym fresh_var !(target.sym_type) in
-    Console.out 1 "SKOLEM : %a@." (Print.pp_symbol Nothing) sk_sym;
-    Console.out 1 "TARGET : %a@." Print.pp_term !(target.sym_type);
-    Console.out 1 "TEST   : %a@." Print.pp_term transformed
+    let et = existstype sign in
+    Console.out 1 "%a : %a@." (Print.pp_symbol Nothing) et Print.pp_term !(et.sym_type);
+    display_frozen !(et.sym_type);
+    if frozen !(et.sym_type) then  Console.out 1 "FOZEN@." else Console.out 1 "NOT FROZEN@."

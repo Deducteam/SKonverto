@@ -117,6 +117,9 @@ definition delta : zen.Proof (zen.imp
  ({|v_Vo|})
 )
 
+symbol frozen : zen.Proof (zen.forall (zen.iota)
+ (λ (x : zen.term (zen.iota)), {|subset|} x x ))
+
 symbol target_type : zen.Proof (zen.imp
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
