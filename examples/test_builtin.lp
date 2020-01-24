@@ -131,4 +131,4 @@ symbol target_type : zen.Proof (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|}))))
 
 set builtin "target_type" ≔ delta
-set builtin "skolem_symbol" ≔ {|bb|}
+set builtin "skolem_symbol" ≔ {|equal_sets|}

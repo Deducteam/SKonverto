@@ -2,6 +2,15 @@ open Core
 open Terms
 open Timed
 
+(** Set for terms. *)
+module TermS =
+  struct
+    type t = term
+    let compare = compare
+  end
+
+module TermSet = Set.Make(TermS)
+
 (** [subst_inv fu x t] replaces all the subterms [fu] by a fresh variable [x] in
     the term [t]. *)
 let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
@@ -57,8 +66,46 @@ let rec display_frozen : term -> unit = fun t ->
 
 let existstype =
     fun sign -> Sign.find sign "frozen"
-let test sign =
-    let et = existstype sign in
+
+
+let rec get_ui : sym -> term -> TermSet.t = fun f t ->
+    match t with
+    | Vari _
+    | Type
+    | Kind                      -> TermSet.empty
+    | Symb(_, _)                -> TermSet.empty
+    | Prod( a, b)               ->
+        let (_, b) = Bindlib.unbind b in
+        TermSet.union (get_ui f a) (get_ui f b)
+    | Abst( a, b)               ->
+        let (_, b) = Bindlib.unbind b in
+        TermSet.union (get_ui f a) (get_ui f b)
+    | Appl( _, _)               ->
+        let (h, l) = Basics.get_args t in
+        let args = List.map (get_ui f) l in
+        let args_set = List.fold_left TermSet.union TermSet.empty args in
+        if Basics.eq h (Symb(f, Nothing)) then
+            TermSet.union args_set (TermSet.of_list l)
+        else
+            args_set
+    | Meta _
+    | Patt _
+    | TEnv _
+    | Wild
+    | TRef _                    -> assert false (* is not handled in the encoding. *)
+
+let get_option opt =
+    match opt with
+    | Some(x)   -> x
+    | None      -> raise (Invalid_argument "The option is None.")
+
+let test : Sign.t -> unit = fun sign ->
+    let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
+    let proof_term = Sign.find sign "delta" in
+    let _ = get_option !(proof_term.sym_def) in
+    let ui = get_ui f !(proof_term.sym_type) in
+    TermSet.iter (Console.out 1 "%a@." Print.pp_term) ui
+    (*let et = existstype sign in
     Console.out 1 "%a : %a@." (Print.pp_symbol Nothing) et Print.pp_term !(et.sym_type);
     display_frozen !(et.sym_type);
-    if frozen !(et.sym_type) then  Console.out 1 "FOZEN@." else Console.out 1 "NOT FROZEN@."
+    if frozen !(et.sym_type) then  Console.out 1 "FOZEN@." else Console.out 1 "NOT FROZEN@." *)
