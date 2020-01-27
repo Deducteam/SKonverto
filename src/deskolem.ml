@@ -5,8 +5,12 @@ open Timed
 (** Set for terms. *)
 module TermS =
   struct
-    type t = term
-    let compare = compare
+    type t = term list
+    let compare l1 l2 =
+        if List.for_all2 Basics.eq l1 l2 then
+            0
+        else
+            Pervasives.compare l1 l2
   end
 
 module TermSet = Set.Make(TermS)
@@ -53,7 +57,10 @@ let rec display_frozen : term -> unit = fun t ->
         Console.out 1 "PROD : %a => %a@." Print.pp_term a Print.pp_term b
     | Abst( a, b)               ->
         let (_, b) = Bindlib.unbind b in
-        if frozen b then Console.out 1 "%a is FROOOOOOOZEN@." Print.pp_term b else Console.out 1 "%a is NOOOOOOOOO@." Print.pp_term b;
+        if frozen b then
+            Console.out 1 "%a is FROOOOOOOZEN@." Print.pp_term b
+        else
+            Console.out 1 "%a is NOOOOOOOOO@." Print.pp_term b;
         Console.out 1 "ABST : %a, %a@." Print.pp_term a Print.pp_term b
     | Appl( a, b)               ->
         Console.out 1 "APP : (%a) (%a)@." Print.pp_term a Print.pp_term b;
@@ -85,7 +92,7 @@ let rec get_ui : sym -> term -> TermSet.t = fun f t ->
         let args = List.map (get_ui f) l in
         let args_set = List.fold_left TermSet.union TermSet.empty args in
         if Basics.eq h (Symb(f, Nothing)) then
-            TermSet.union args_set (TermSet.of_list l)
+            TermSet.add l args_set
         else
             args_set
     | Meta _
@@ -99,12 +106,18 @@ let get_option opt =
     | Some(x)   -> x
     | None      -> raise (Invalid_argument "The option is None.")
 
+let print_args l =
+    List.iter (Console.out 1 "%a " Print.pp_term) l;
+    Console.out 1 "@."
+
 let test : Sign.t -> unit = fun sign ->
     let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
     let proof_term = Sign.find sign "delta" in
-    let _ = get_option !(proof_term.sym_def) in
-    let ui = get_ui f !(proof_term.sym_type) in
-    TermSet.iter (Console.out 1 "%a@." Print.pp_term) ui
+    let proof = get_option !(proof_term.sym_def) in
+    let ui_type = (get_ui f !(proof_term.sym_type)) in
+    let ui_proof = get_ui f proof in
+    let ui = TermSet.union ui_type ui_proof in
+    TermSet.iter print_args ui
     (*let et = existstype sign in
     Console.out 1 "%a : %a@." (Print.pp_symbol Nothing) et Print.pp_term !(et.sym_type);
     display_frozen !(et.sym_type);
