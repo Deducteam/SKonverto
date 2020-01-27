@@ -13,20 +13,20 @@ definition delta : zen.Proof (zen.imp
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|})))))) (zen.imp
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn)))))) (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|}))))
  ≔
  zen.nnpp (zen.imp
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|})))))) (zen.imp
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn)))))) (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|}))))
 
 (λ ({|v_Vo|} : zen.Proof (zen.not
@@ -34,28 +34,28 @@ definition delta : zen.Proof (zen.imp
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|})))))) (zen.imp
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn)))))) (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|})))))),
  zen.Rnotimply
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|}))))))
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn))))))
  (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|})))
  (λ ({|v_Vp|} : zen.Proof (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|}))))))),
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn))))))),
  λ ({|v_Vq|} : zen.Proof (zen.not
  (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|}))))),
@@ -69,22 +69,22 @@ definition delta : zen.Proof (zen.imp
  (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|})))))
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn)))))
  ({|b|})
  (λ ({|v_Vt|} : zen.Proof (zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|b|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|b|}) ({|v_Vn|})))))),
+ ({|subset|} ({|b|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|b|}) (v_Vn)))))),
  zen.Rall
  (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|b|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|b|}) ({|v_Vn|}))))
+ ({|subset|} ({|b|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|b|}) (v_Vn))))
  ({|bb|})
  (λ ({|v_Vu|} : zen.Proof (zen.or
  ({|subset|} ({|b|}) ({|bb|})) (zen.not
@@ -124,10 +124,10 @@ symbol target_type : zen.Proof (zen.imp
  (zen.forall (zen.iota)
  (λ ({|v_Vm|} : zen.term (zen.iota)),
  zen.forall (zen.iota)
- (λ ({|v_Vn|} : zen.term (zen.iota)),
+ (λ (v_Vn : zen.term (zen.iota)),
  zen.or
- ({|subset|} ({|v_Vm|}) ({|v_Vn|})) (zen.not
- ({|equal_sets|} ({|v_Vm|}) ({|v_Vn|})))))) (zen.imp
+ ({|subset|} ({|v_Vm|}) (v_Vn)) (zen.not
+ ({|equal_sets|} ({|v_Vm|}) (v_Vn)))))) (zen.imp
  ({|equal_sets|} ({|b|}) ({|bb|})) ({|subset|} ({|b|}) ({|bb|}))))
 
 set builtin "target_type" ≔ delta
