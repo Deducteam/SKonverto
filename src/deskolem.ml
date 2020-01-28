@@ -43,55 +43,8 @@ let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
     | TRef _                    -> assert false (* is not handled in the encoding. *)
   in subst
 
-let rec check_vars : term -> bool = fun t ->
-    match t with
-    | Vari _                    -> true
-    | Type                      -> false
-    | Kind                      -> false
-    | Symb(_, _)                -> false
-    | Prod( _, b)               ->
-        let (_, b) = Bindlib.unbind b in
-        check_vars b
-    | Abst( _, b)               ->
-        let (_, b) = Bindlib.unbind b in
-        check_vars b
-    | Appl( a, b)               -> check_vars a || check_vars b
-    | Meta _
-    | Patt _
-    | TEnv _
-    | Wild
-    | TRef _                    -> assert false (* is not handled in the encoding. *)
-
 let frozen : term -> bool = fun t ->
-    Bindlib.is_closed (Bindlib.box t)
-
-let rec display_frozen : term -> unit = fun t ->
-    match t with
-    | Vari _
-    | Type
-    | Kind                      -> ()
-    | Symb(_, _)                -> Console.out 1 "SYMB : %a@." Print.pp_term t
-    | Prod( a, b)               ->
-        let (_, b) = Bindlib.unbind b in
-        Console.out 1 "PROD : %a => %a@." Print.pp_term a Print.pp_term b
-    | Abst( a, b)               ->
-        let (_, b) = Bindlib.unbind b in
-        if frozen b then
-            Console.out 1 "%a is FROOOOOOOZEN@." Print.pp_term b
-        else
-            Console.out 1 "%a is NOOOOOOOOO@." Print.pp_term b;
-        Console.out 1 "ABST : %a, %a@." Print.pp_term a Print.pp_term b
-    | Appl( a, b)               ->
-        Console.out 1 "APP : (%a) (%a)@." Print.pp_term a Print.pp_term b;
-        display_frozen a; display_frozen b
-    | Meta _
-    | Patt _
-    | TEnv _
-    | Wild
-    | TRef _                    -> assert false (* is not handled in the encoding. *)
-
-let existstype =
-    fun sign -> Sign.find sign "frozen"
+    Bindlib.is_closed (lift t)
 
 let print_args l =
     List.iter (Console.out 1 "%a " Print.pp_term) l;
@@ -116,7 +69,7 @@ let rec get_ui : sym -> term list list -> term -> term list list = fun f l t ->
         (* let args = List.map (get_ui f l) args in *)
         let args_set = List.fold_left (get_ui f) l args in
         if Basics.eq h (Symb(f, Nothing)) then
-            if List.exists (List.for_all2 Basics.eq args) args_set || check_vars t then
+            if List.exists (List.for_all2 Basics.eq args) args_set || not (frozen t) then
                 args_set
             else
                 args::args_set
