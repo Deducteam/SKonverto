@@ -2,19 +2,6 @@ open Core
 open Terms
 open Timed
 
-(** Set for terms. *)
-module TermS =
-  struct
-    type t = term list
-    let compare l1 l2 =
-        if List.for_all2 Basics.eq l1 l2 then
-            0
-        else
-            Pervasives.compare l1 l2
-  end
-
-module TermSet = Set.Make(TermS)
-
 (** [subst_inv fu x t] replaces all the subterms [fu] by a fresh variable [x] in
     the term [t]. *)
 let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
@@ -43,13 +30,16 @@ let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
     | TRef _                    -> assert false (* is not handled in the encoding. *)
   in subst
 
+(** [frozen t] checks if a term [t] contains free variables. *)
 let frozen : term -> bool = fun t ->
     Bindlib.is_closed (lift t)
 
+(** [print_args l] print terms that [l] contains. *)
 let print_args l =
     List.iter (Console.out 1 "%a " Print.pp_term) l;
     Console.out 1 "@."
 
+(** [get_ui f l t] returns a list of arguments used in [f]-terms inside [t]. *)
 let rec get_ui : sym -> term list list -> term -> term list list = fun f l t ->
     match t with
     | Vari _
@@ -81,12 +71,12 @@ let rec get_ui : sym -> term list list -> term -> term list list = fun f l t ->
     | Wild
     | TRef _                    -> assert false (* is not handled in the encoding. *)
 
-let get_option opt =
+(** [get_option opt] returns [x] if [opt] is of the shape `Some x`, raise an
+    Invalid_argument otherwise. *)
+let get_option = fun opt ->
     match opt with
     | Some(x)   -> x
     | None      -> raise (Invalid_argument "The option is None.")
-
-let comparer a b = if List.for_all2 Basics.eq a b then Console.out 1 "TRUE" else Console.out 1 "FALSE"
 
 let test : Sign.t -> unit = fun sign ->
     let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
