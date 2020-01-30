@@ -78,17 +78,20 @@ let get_option = fun opt ->
     | Some(x)   -> x
     | None      -> raise (Invalid_argument "The option is None.")
 
+(** [size t] return the size of the term [t]. *)
+let rec size : term -> int = fun t ->
+  List.fold_right (fun a l -> size a + l) (snd (Basics.get_args t)) 1
+
+(** [size_args f args] return the size of the term [f a0 a1 ... an] where args
+    = [a0; a1; ...; an]. *)
+let size_args : sym -> term list -> int = fun f args ->
+    size (Basics.add_args (Symb(f, Nothing)) args)
+
 let test : Sign.t -> unit = fun sign ->
     let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
     let proof_term = Sign.find sign "delta" in
     let proof = get_option !(proof_term.sym_def) in
     (* let ui_type = (get_ui f [] !(proof_term.sym_type)) in *)
     let ui_proof = get_ui f [] proof in
-    (* List.iter print_args ui_type; *)
-    (* Console.out 1 "RESULT : "; *)
-    List.iter print_args ui_proof
-    (* comparer (List.hd (List.hd !liste)) (List.hd (List.hd (List.tl !liste))) *)
-    (*let et = existstype sign in
-    Console.out 1 "%a : %a@." (Print.pp_symbol Nothing) et Print.pp_term !(et.sym_type);
-    display_frozen !(et.sym_type);
-    if frozen !(et.sym_type) then  Console.out 1 "FOZEN@." else Console.out 1 "NOT FROZEN@." *)
+    let ordered_ui = List.sort (fun x y -> size_args f y - size_args f x) ui_proof in
+    List.iter print_args ordered_ui
