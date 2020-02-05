@@ -86,16 +86,34 @@ let rec size : term -> int = fun t ->
 let size_args : sym -> term list -> int = fun f args ->
     size (Basics.add_args (Symb(f, Nothing)) args)
 
+(** [subst_var x m n] substitutes the variable [x] with the term [n] inside the
+    term [m].*)
+let subst_var : term Bindlib.var -> term -> term -> term = fun x m n ->
+    Bindlib.subst (Bindlib.unbox (Bindlib.bind_var x (lift m))) n
+
+(** [subst_mvar x m n] substitutes all variables that [x] contains with the terms
+    of [n] inside the term [m]. *)
+let subst_mvar : term Bindlib.var list -> term -> term list -> term =
+    fun x m n ->
+    let x = Array.of_list x in
+    let n = Array.of_list n in
+    Bindlib.msubst (Bindlib.unbox (Bindlib.bind_mvar x (lift m))) n
+
+(** [is_total_instance a b f x y] checks if [b] is a total instance of [a] where
+    we substitute [y] with [f x]. *)
 let is_total_instance :
     term -> term -> sym -> term Bindlib.var list -> term Bindlib.var
     -> term list option = fun a b f x y ->
     let fx = Basics.add_args (Symb(f, Nothing)) (List.map (fun x -> Vari x) x) in
-    let a' = Bindlib.subst (Bindlib.unbox (Bindlib.bind_var y (Bindlib.box a))) fx in
+    (* Calculate the strong normal form before adding the TRef since we can not
+        do it with TRef. *)
+    let a = Eval.snf a in
+    let a' = subst_var y a fx in
     let x_tref = Array.init (List.length x) (fun _ -> TRef(ref None)) in
-    let x_array = Array.of_list x in
-    let a' = Bindlib.msubst (Bindlib.unbox (Bindlib.bind_mvar x_array (Bindlib.box a'))) x_tref in
-    let nf_a = Eval.snf a' in
+    let a' = subst_mvar x a' (Array.to_list x_tref) in (* FIXME to_list is called before of_list in susbt_mvar *)
+    let nf_a = a' in
     let nf_b = Eval.snf b in
+    (* Console.out 1 "NFA : %a@.NFB : %a@." Print.pp nf_a Print.pp nf_b; *)
     if Basics.eq nf_a nf_b then
         let ui_tref = Array.to_list x_tref in
         let get_content = fun t -> match t with
@@ -106,18 +124,65 @@ let is_total_instance :
     else
         None
 
+(** [unProof t] returns the proposition which is inside the `Proof` constructor. *)
 let unProof : term -> term = fun t ->
     match t with
     |Appl(Symb({sym_name = "Proof"; _}, _), t') -> t'
     |_                                          -> assert false
 
+(** [construct_delta f a x y t] build the context
+    [α₀ : (fu⁰/y, u⁰/x) a, α₁ : (fu¹/y, u¹/x) a, ..., αₖ : (fuᵏ/y, uᵏ/x) a ]
+    where [uⁱ] are the arguments of [f] inside [t]. *)
+let construct_delta :
+    sym -> term -> term Bindlib.var list -> term Bindlib.var-> term -> Env.t =
+    fun f a x y t ->
+    let ui = get_ui f [] t in
+    let fx = Basics.add_args (Symb(f, Nothing)) (List.map (fun x -> Vari x) x) in
+    let a_y = subst_var y a fx in
+    let a_x = List.map (subst_mvar x a_y) ui in
+    let add_context = fun e ax ->
+        Env.add (Bindlib.new_var mkfree "alpha") (Bindlib.box ax) e in
+    List.fold_left add_context Env.empty a_x
+
+(** [get_x t] return the list of quantified variables [x₀; x₁; ...; xₙ] and a
+    term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
+let rec get_x : term -> term Bindlib.var list * term = fun t ->
+    let s, args = Basics.get_args t in
+    match s with
+    |Symb({sym_name = "forall"; _}, _)  ->
+        (
+            match List.nth args 1 with
+            |Abst(_, b) ->
+                let x, b = Bindlib.unbind b in
+                let x', b' = get_x b in
+                x::x', b'
+            |_          -> assert false
+        )
+    |_                                  -> [], t
+
+(** [get_y t] return the existentiel variable [y] and a term [b] if [t] is of
+    the form : [∃y. b]. *)
+let get_y : term -> term Bindlib.var * term = fun t ->
+    let s, args = Basics.get_args t in
+    match s with
+    |Symb({sym_name = "exists"; _}, _)  ->
+        (
+            match List.nth args 1 with
+            |Abst(_, b) -> Bindlib.unbind b
+            |_          -> assert false
+        )
+    |_                                  -> assert false
+
 let test : Sign.t -> unit = fun sign ->
-    let _ = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
+    let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
     let a = !((Sign.find sign "F").sym_type) in
-    let _ = unProof a in
+    let a = unProof a in
     let b = unProof !((Sign.find sign "B").sym_type) in
-    Console.out 1 "A : %a@." Print.pp (Eval.snf a);
-    Console.out 1 "B : %a@." Print.pp b
+    let x, a = get_x a in
+    let y, a = get_y a in
+    let ui_ref = is_total_instance a b f x y in
+    List.iter (Console.out 1 "arg : %a@." Print.pp) (get_option ui_ref)
+    (* Console.out 1 "B : %a@." Print.pp b *)
     (* let proof_term = Sign.find sign "delta" in *)
     (* let proof = get_option !(proof_term.sym_def) in *)
     (* let ui_type = (get_ui f [] !(proof_term.sym_type)) in *)
