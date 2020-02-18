@@ -1,6 +1,7 @@
 
 require logic.zen as zen
 
+symbol iota : zen.term zen.iota
 symbol a : zen.term zen.iota
 symbol b : zen.term zen.iota
 symbol f : zen.term zen.iota ⇒ zen.term zen.iota ⇒  zen.term zen.iota

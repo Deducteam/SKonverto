@@ -173,6 +173,33 @@ let get_y : term -> term Bindlib.var * term = fun t ->
         )
     |_                                  -> assert false
 
+let type_elm sign s = !((Sign.find sign s).sym_type)
+
+(** [elim_hypothesis sign u f x y a pa b pb] return a proof of [b] without the
+    hypothesis [h]. if Γ,h: (u/x, fu/y)a ⊢ pb : b and Γ ⊢ pa : a return Γ ⊢
+    pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb) : b *)
+let elim_hypothesis :
+    Sign.t -> term list -> sym -> term Bindlib.var list ->
+    term Bindlib.var -> term -> term -> term -> term -> term =
+    fun sign u f x y a pa b pb ->
+    let z = Bindlib.new_var mkfree "z" in
+    let fu = Basics.add_args (Symb(f, Nothing)) u in
+    (* (z / fu) pb. *)
+    let fresh_pb = subst_inv fu z pb in
+    (* (u / x) a. *)
+    let hu = subst_mvar x a u in
+    (* (u / x, z / y) a. *)
+    let huz = subst_var y hu (Vari z) in
+    let h = Bindlib.new_var mkfree "h" in
+    (* λ (huz : (u/x, z/y)a), (z / fu) pb. *)
+    let h_lambda = Abst(huz, Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
+    (* zen.iota *)
+    let iota = type_elm sign "iota" |> Basics.get_args |> snd |> List.hd in
+    (* λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb. *)
+    let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
+    (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
+    Basics.add_args pa (u @ [b; z_lambda])
+
 let test : Sign.t -> unit = fun sign ->
     let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
     let a = !((Sign.find sign "F").sym_type) in
