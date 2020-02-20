@@ -119,8 +119,7 @@ let is_total_instance :
         let get_content = fun t -> match t with
             | TRef(r)    -> (match !r with Some(a) -> a | _ -> assert false)
             | _          -> assert false in
-        let ui = List.map  get_content ui_tref in
-        Some(ui)
+        Some(List.map get_content ui_tref)
     else
         None
 
@@ -134,9 +133,8 @@ let unProof : term -> term = fun t ->
     [α₀ : (fu⁰/y, u⁰/x) a, α₁ : (fu¹/y, u¹/x) a, ..., αₖ : (fuᵏ/y, uᵏ/x) a ]
     where [uⁱ] are the arguments of [f] inside [t]. *)
 let construct_delta :
-    sym -> term -> term Bindlib.var list -> term Bindlib.var-> term -> Env.t =
-    fun f a x y t ->
-    let ui = get_ui f [] t in
+    sym -> term -> term Bindlib.var list -> term Bindlib.var -> term list list
+    -> Env.t = fun f a x y ui ->
     let fx = Basics.add_args (Symb(f, Nothing)) (List.map (fun x -> Vari x) x) in
     let a_y = subst_var y a fx in
     let a_x = List.map (subst_mvar x a_y) ui in
@@ -173,6 +171,8 @@ let get_y : term -> term Bindlib.var * term = fun t ->
         )
     |_                                  -> assert false
 
+(** [type_elm sign s] return the type of the symbol named [s] in the signature
+    [sign]. *)
 let type_elm sign s = !((Sign.find sign s).sym_type)
 
 (** [elim_hypothesis sign u f x y a pa b pb] return a proof of [b] without the
@@ -199,6 +199,28 @@ let elim_hypothesis :
     let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
     Basics.add_args pa (u @ [b; z_lambda])
+
+let deskolemize : Env.t -> term -> term -> term -> sym
+    -> Env.t * term = fun _ axiom formula proof f ->
+    (* Calculate U̅ᵢ *)
+    let u = get_ui f [] (unProof formula) in
+    (* Sort U̅ᵢ *)
+    let u = List.sort (fun x y -> size_args f y - size_args f x) u in
+    (* Get the variables x̅ and y. *)
+    let x, a = get_x (unProof axiom) in
+    let y, a = get_y a in
+    (* Construct Δ. *)
+    let delta = construct_delta f a x y u in
+    (* Check if the current formula [b] is a total instance of [a]. *)
+    match is_total_instance a formula f x y with
+    | Some(_)   ->
+        let alpha = List.find
+            (fun (_, (_, x)) -> Basics.eq formula (Bindlib.unbox x)) delta in
+        delta, Vari(alpha |> snd |> fst)
+    | None      ->
+        match Eval.whnf proof with
+        |_      -> assert false
+
 
 let test : Sign.t -> unit = fun sign ->
     let f = Sign.builtin None !(sign.sign_builtins) "skolem_symbol" in
