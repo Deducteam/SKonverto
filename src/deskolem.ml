@@ -123,24 +123,27 @@ let is_total_instance :
     else
         None
 
+exception Not_Proof of term
+
 (** [unProof t] returns the proposition which is inside the `Proof` constructor. *)
 let unProof : term -> term = fun t ->
     match t with
     |Appl(Symb({sym_name = "Proof"; _}, _), t') -> t'
-    |_                                          -> assert false
+    |_                                          -> raise (Not_Proof t)
 
 (** [construct_delta f a x y t] build the context
     [α₀ : (fu⁰/y, u⁰/x) a, α₁ : (fu¹/y, u¹/x) a, ..., αₖ : (fuᵏ/y, uᵏ/x) a ]
     where [uⁱ] are the arguments of [f] inside [t]. *)
 let construct_delta :
     sym -> term -> term Bindlib.var list -> term Bindlib.var -> term list list
-    -> Env.t = fun f a x y ui ->
+    -> Ctxt.t * term list Extra.StrMap.t = fun f a x y ui ->
     let fx = Basics.add_args (Symb(f, Nothing)) (List.map (fun x -> Vari x) x) in
     let a_y = subst_var y a fx in
-    let a_x = List.map (subst_mvar x a_y) ui in
-    let add_context = fun e ax ->
-        Env.add (Bindlib.new_var mkfree "alpha") (Bindlib.box ax) e in
-    List.fold_left add_context Env.empty a_x
+    let add_context = fun (e, m) u ->
+        let ax = subst_mvar x a_y u in
+        let var = Bindlib.new_var mkfree "alpha" in
+        Ctxt.add var ax e, Extra.StrMap.add (Bindlib.name_of var) u m in
+    List.fold_left add_context (Ctxt.empty, Extra.StrMap.empty) ui
 
 (** [get_x t] return the list of quantified variables [x₀; x₁; ...; xₙ] and a
     term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
@@ -191,34 +194,96 @@ let elim_hypothesis :
     (* (u / x, z / y) a. *)
     let huz = subst_var y hu (Vari z) in
     let h = Bindlib.new_var mkfree "h" in
-    (* λ (huz : (u/x, z/y)a), (z / fu) pb. *)
+    (* λ (h : huz), (z / fu) pb. *)
     let h_lambda = Abst(huz, Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
     (* zen.iota *)
     let iota = type_elm sign "iota" |> Basics.get_args |> snd |> List.hd in
-    (* λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb. *)
+    (* λ (z : iota), λ (h : huz), (z / fu) pb. *)
     let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
     Basics.add_args pa (u @ [b; z_lambda])
 
-let deskolemize : Env.t -> term -> term -> term -> sym
-    -> Env.t * term = fun _ axiom formula proof f ->
-    (* Calculate U̅ᵢ *)
-    let u = get_ui f [] (unProof formula) in
-    (* Sort U̅ᵢ *)
-    let u = List.sort (fun x y -> size_args f y - size_args f x) u in
+(** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
+let get_prod : term -> term Bindlib.var -> term * term = fun t x ->
+    match t with
+    |Prod(u, v) -> u, Bindlib.subst v (Vari x)
+    |_          -> assert false
+
+let get_term_context alpha = snd alpha
+
+let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
+    -> Ctxt.t * term * term list Extra.StrMap.t = fun sign context axiom formula proof f pa ->
     (* Get the variables x̅ and y. *)
     let x, a = get_x (unProof axiom) in
     let y, a = get_y a in
+    let fx = Basics.add_args (Symb(f, Nothing)) (List.map (fun x -> Vari x) x) in
+    let a_fx = subst_var y a fx in
+    let iota = type_elm sign "iota" in
+    let bind_var t x_var = Abst(iota, Bindlib.unbox (Bindlib.bind_var x_var (lift t))) in
+    let x_a_fx = List.fold_left bind_var a_fx x in
+    (* Calculate U̅ᵢ *)
+    let u = get_ui f [] (unProof formula) in
+    let add_ui u alpha =
+        try
+            (* Don't add ∀ x̅, (f x̅ / y) A. *)
+            if Basics.eq (get_term_context alpha) x_a_fx then
+                u
+            else
+                get_ui f u (get_term_context alpha)
+        with Not_Proof(_) -> u in
+    let u = List.fold_left add_ui u context in
+    (* Sort U̅ᵢ *)
+    let u = List.sort (fun x y -> size_args f y - size_args f x) u in
     (* Construct Δ. *)
-    let delta = construct_delta f a x y u in
-    (* Check if the current formula [b] is a total instance of [a]. *)
+    let delta, mu = construct_delta f a x y u in
+    (* Check if [formula] is a total instance of [a]. *)
     match is_total_instance a formula f x y with
     | Some(_)   ->
         let alpha = List.find
-            (fun (_, (_, x)) -> Basics.eq formula (Bindlib.unbox x)) delta in
-        delta, Vari(alpha |> snd |> fst)
+            (fun (_, x) -> Basics.eq formula x) delta in
+        delta, Vari(fst alpha), mu
     | None      ->
-        match Eval.whnf proof with
+        let proof' = Eval.whnf proof in
+        match proof' with
+        |Vari(_)    -> delta, proof', mu
+        |Symb(_)    -> delta, proof', mu
+        |Abst(t, u) ->
+            let (x_var, u) = Bindlib.unbind u in
+            let whnf_formula = Eval.whnf formula in
+            let t', u' = get_prod whnf_formula x_var in (* FIXME check if t = t'. *)
+            let new_context = Ctxt.add x_var t' context in
+            let new_delta, new_u, new_mu = deskolemize sign new_context axiom u' u f pa in
+            let not_exist_env = fun y -> List.for_all (fun x -> not (Basics.eq (get_term_context x) (get_term_context y))) delta in
+            let hypotheses = List.filter not_exist_env new_delta in
+            let proof_b = Abst(t, Bindlib.unbox (Bindlib.bind_var x_var (lift new_u))) in
+            let elim_hyp = fun pb alpha ->
+                let u = Extra.StrMap.find (alpha |> fst |> Bindlib.name_of) new_mu in
+                elim_hypothesis sign u f x y a pa formula pb
+            in
+            delta, List.fold_left elim_hyp proof_b hypotheses, mu
+        |Appl(u, v)  ->
+            let type_u, constraints = Infer.infer context x_a_fx in
+            assert (constraints = []);
+            let whnf_type_u = Eval.whnf type_u in
+            let x_var = Bindlib.new_var mkfree "X" in
+            let type_v, type_w = get_prod whnf_type_u x_var in (* B should be convertible with [v/x]type_w. *)
+            let delta_u, new_u, mu_u = deskolemize sign context axiom type_u u f pa in
+            let delta_v, new_v, mu_v = deskolemize sign context axiom type_v v f pa in
+            let exist_delta = fun d y ->
+                if List.exists (fun x -> Basics.eq (get_term_context x) (get_term_context y)) delta_u then
+                    d
+                else y::d
+                in
+            let new_delta = List.fold_left exist_delta delta_u delta_v in
+            let not_exist_env = fun y -> List.for_all (fun x -> not (Basics.eq (get_term_context x) (get_term_context y))) delta in
+            let hypotheses = List.filter not_exist_env new_delta in
+            let proof_b = Appl(new_u, new_v) in
+            let elim_hyp = fun pb alpha ->
+                let u = Extra.StrMap.find (alpha |> fst |> Bindlib.name_of) (Extra.StrMap.union (fun _ x _ -> Some(x)) mu_u mu_v) in
+                elim_hypothesis sign u f x y a pa formula pb
+            in
+            assert (Infer.conv formula (subst_var x_var type_w new_v); Pervasives.(!Infer.constraints) = []); (* check if [v'/x]w ≃ B. *)
+            delta, List.fold_left elim_hyp proof_b hypotheses, mu
         |_      -> assert false
 
 
