@@ -15,3 +15,6 @@ uninstall:
 
 clean:
 	-rm -r _build/
+
+clean-examples:
+	find examples -name "*.lpo"|xargs rm
