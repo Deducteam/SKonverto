@@ -15,6 +15,8 @@ require lemmas.c_0_16 as c_0_16
 require logic.zen as zen
 require eprover_trace
 
+symbol iota_b : zen.term zen.iota
+
 symbol axiom_A : zen.Proof (zen.forall (zen.iota) (λ X1, zen.exists (zen.iota) (λ Y, eprover_trace.{|p|} X1 (eprover_trace.{|s|} (Y))   )))
 definition proof_eprover_trace
  (ax_ax_tran : zen.Proof (zen.forall (zen.iota) (λ X1, zen.forall (zen.iota) (λ X2, zen.forall (zen.iota) (λ X3, zen.imp (eprover_trace.{|p|} X1 X2 ) (zen.imp (eprover_trace.{|p|} X2 X3 ) (eprover_trace.{|p|} X1 X3 )))))))
@@ -43,4 +45,4 @@ lemmas_c_0_16
 set builtin "skolem_symbol" ≔ eprover_trace.{|f|}
 set builtin "A" ≔ axiom_A
 set builtin "B" ≔ proof_eprover_trace
-set builtin "iota" ≔ zen.iota
+set builtin "iota" ≔ iota_b
