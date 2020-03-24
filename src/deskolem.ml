@@ -179,6 +179,10 @@ let get_y : term -> term Bindlib.var * term = fun t ->
     [sign]. *)
 let type_elm sign s = !((Sign.find sign s).sym_type)
 
+let check_term_iota = function
+    |Appl(Symb({sym_name = "term"; _}, _), _)   -> true
+    |_                                          -> false
+
 (** [elim_hypothesis sign u f x y a pa b pb] return a proof of [b] without the
     hypothesis [h]. if Γ,h: (u/x, fu/y)a ⊢ pb : b and Γ ⊢ pa : a return Γ ⊢
     pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb) : b *)
@@ -206,7 +210,7 @@ let elim_hypothesis :
 
 (** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
 let get_prod : term -> term Bindlib.var -> term * term = fun t x ->
-    match t with
+    match unfold t with
     |Prod(u, v) -> u, Bindlib.subst v (Vari x)
     |_          -> assert false
 
@@ -214,7 +218,7 @@ let get_term_context alpha = snd alpha
 
 let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
     -> term -> Ctxt.t * term * term list Extra.StrMap.t = fun sign context axiom formula proof f pa iota ->
-    Console.out 4 "[DEBUG] Deskolemize on @. B := [%a]@. Proof := [%a] @." Print.pp formula Print.pp proof;
+    Console.out 1 "[DEBUG] Deskolemize on @. B := [%a]@. Proof := [%a] @." Print.pp formula Print.pp proof;
     (* Get the variables x̅ and y. *)
     Console.out 4 "[Debug] geting [x̅] from [%a]@." Print.pp axiom;
     let x, a = get_x (unProof axiom) in
@@ -256,14 +260,14 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
         Console.out 4 " [DEBUG]Subcase on [%a]@." Print.pp (unfold proof');
         match unfold proof' with
         |Vari(_)    ->
-            Console.out 4 "[DEBUG] Var : [%a]@." Print.pp (unfold proof');
+            Console.out 1 "[DEBUG] Var : [%a]@." Print.pp (unfold proof');
             delta, proof', mu
         |Symb(_)    ->
-            Console.out 4 "[DEBUG] Symb : [%a]@." Print.pp (unfold proof');
+            Console.out 1 "[DEBUG] Symb : [%a]@." Print.pp (unfold proof');
             delta, proof', mu
         |Abst(t, u) ->
             let (x_var, u) = Bindlib.unbind u in
-            Console.out 4 "[DEBUG] Abst(t, u) : @. t : [%a]@. u : [%a]@. formula : [%a]@." Print.pp t Print.pp u Print.pp formula;
+            Console.out 1 "[DEBUG] Abst(t, u) : @. t : [%a]@. u : [%a]@. formula : [%a]@." Print.pp t Print.pp u Print.pp formula;
             let whnf_formula = Eval.whnf formula in
             Console.out 4 "  [DEBUG] TERM Abst : [%a] ABST WHNF : [%a]@." Print.pp (unfold proof') Print.pp formula;
             let t', u' = get_prod whnf_formula x_var in (* FIXME check if t = t'. *)
@@ -280,28 +284,34 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
             in
             delta, List.fold_left elim_hyp proof_b hypotheses, mu
         |Appl(u, v)  ->
-        Console.out 4 "[DEBUG] Appl(u, v) : @. u : [%a]@. v : [%a]@. formula : [%a]@." Print.pp u Print.pp v Print.pp formula;
-            let type_u, constraints = Infer.infer context (Eval.whnf x_a_fx) in
+        Console.out 1 "[DEBUG] Appl(u, v) : @. u : [%a]@. v : [%a]@. formula : [%a]@." Print.pp u Print.pp v Print.pp formula;
+            let type_u, constraints = Infer.infer context u in
             if constraints <> [] then
-                (Console.out 4 "[DEBUG] Context : @.";
-                List.iter (fun (v, t) -> Console.out 4 " %a : %a @." Print.pp (Vari(v)) Print.pp t) context;
-                Console.out 4 "[DEBUG] Constraints on infer of [%a] : @." Print.pp x_a_fx;
-                List.iter (fun (x, y) -> Console.out 4 "[DEBUG] [%a] ≡ [%a] @." Print.pp x Print.pp y) constraints);
+                (Console.out 1 "[DEBUG] Context : @.";
+                List.iter (fun (v, t) -> Console.out 1 " %a : %a @." Print.pp (Vari(v)) Print.pp t) context;
+                Console.out 1 "[DEBUG] Constraints on infer of [%a] : @." Print.pp u;
+                List.iter (fun (x, y) -> Console.out 1 "[DEBUG] [%a] ≡ [%a] @." Print.pp x Print.pp y) constraints);
             assert (constraints = []);
             Console.out 4 "  [DEBUG] TERM : [%a] APPL WHNF : [%a]@." Print.pp (unfold proof') Print.pp type_u;
             let whnf_type_u = Eval.whnf type_u in
             let x_var = Bindlib.new_var mkfree "X" in
             Console.out 4 "[DEBUG] APPL1 Calling Deskolemize from [%a] to [%a]@." Print.pp (unfold proof') Print.pp type_u;
             let type_v, type_w = get_prod whnf_type_u x_var in (* B should be convertible with [v/x]type_w. *)
+            Console.out 4 " type(u) : [%a]@. type(v) : [%a]@." Print.pp type_u Print.pp type_v;
             let delta_u, new_u, mu_u = deskolemize sign context axiom type_u u f pa iota in
             Console.out 4 "[DEBUG] APPL2 Calling Deskolemize from [%a] to [%a]@." Print.pp (unfold proof') Print.pp type_v;
-            let delta_v, new_v, mu_v = deskolemize sign context axiom type_v v f pa iota in
+
             let exist_delta = fun d y ->
                 if List.exists (fun x -> Basics.eq (get_term_context x) (get_term_context y)) delta_u then
                     d
                 else y::d
                 in
-            let new_delta = List.fold_left exist_delta delta_u delta_v in
+            let new_delta, new_v, mu_v =
+                if check_term_iota type_v then
+                    delta_u, v, Extra.StrMap.empty
+                else
+                    let delta_v, new_v, mu_v = deskolemize sign context axiom type_v v f pa iota in
+                    List.fold_left exist_delta delta_u delta_v, new_v, mu_v in
             let not_exist_env = fun y -> List.for_all (fun x -> not (Basics.eq (get_term_context x) (get_term_context y))) delta in
             let hypotheses = List.filter not_exist_env new_delta in
             let proof_b = Appl(new_u, new_v) in

@@ -6,7 +6,7 @@ require logic.dk_logic as dk_logic
 
 symbol prop  : TYPE
 symbol _type  : TYPE
-symbol Proof : prop ⇒ TYPE
+injective symbol Proof : prop ⇒ TYPE
 symbol term  : _type ⇒ TYPE
 symbol arrow : _type ⇒ _type ⇒ _type
 constant symbol iota  : _type
