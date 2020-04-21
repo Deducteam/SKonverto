@@ -144,7 +144,7 @@ let construct_delta :
         let ax = subst_mvar x a_y u in
         let var = Bindlib.new_var mkfree "alpha" in
         Ctxt.add var ax e, Extra.StrMap.add (Bindlib.name_of var) u m in
-    List.fold_left add_context (Ctxt.empty, Extra.StrMap.empty) ui
+    List.fold_left add_context (Ctxt.empty, Extra.StrMap.empty) ui (* BUUUUG *)
 
 (** [get_x t] return the list of quantified variables [x₀; x₁; ...; xₙ] and a
     term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
@@ -190,6 +190,7 @@ let elim_hypothesis :
     Sign.t -> term list -> sym -> term Bindlib.var list ->
     term Bindlib.var -> term -> term -> term -> term -> term =
     fun sign u f x y a pa b pb ->
+    Console.out 4 "[DEBUG] First step in elim_hypothesis@.";
     let z = Bindlib.new_var mkfree "z" in
     let fu = Basics.add_args (Symb(f, Nothing)) u in
     (* (z / fu) pb. *)
@@ -202,10 +203,13 @@ let elim_hypothesis :
     (* λ (h : huz), (z / fu) pb. *)
     let h_lambda = Abst(huz, Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
     (* zen.iota *)
-    let iota = type_elm sign "iota" |> Basics.get_args |> snd |> List.hd in
+    Console.out 4 "[DEBUG] Iota step in elim_hypothesis@.";
+    let iota = type_elm sign "iota_b" |> Basics.get_args |> snd |> List.hd in
     (* λ (z : iota), λ (h : huz), (z / fu) pb. *)
+    Console.out 4 "[DEBUG] Constructing Abstraction step in elim_hypothesis@.";
     let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
+    Console.out 4 "[DEBUG] Final step in elim_hypothesis@.";
     Basics.add_args pa (u @ [b; z_lambda])
 
 (** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
@@ -218,7 +222,7 @@ let get_term_context alpha = snd alpha
 
 let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
     -> term -> Ctxt.t * term * term list Extra.StrMap.t = fun sign context axiom formula proof f pa iota ->
-    Console.out 1 "[DEBUG] Deskolemize on @. B := [%a]@. Proof := [%a] @." Print.pp formula Print.pp proof;
+    Console.out 4 "[DEBUG] Deskolemize on @. B := [%a]@. Proof := [%a] @." Print.pp formula Print.pp proof;
     (* Get the variables x̅ and y. *)
     Console.out 4 "[Debug] geting [x̅] from [%a]@." Print.pp axiom;
     let x, a = get_x (unProof axiom) in
@@ -233,7 +237,7 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
     let x_a_fx = List.fold_left bind_var a_fx x in
     Console.out 4 "[Debug] calculating U̅ᵢ@.";
     (* Calculate U̅ᵢ *)
-    let u = get_ui f [] (unfold formula) in (* FIXME Meta variable should not be inside the term. *)
+    let u = get_ui f [] (unfold formula) in
     Console.out 4 "[Debug] get only Proof formulas@.";
     let add_ui u alpha =
         try
@@ -249,6 +253,7 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
     let u = List.sort (fun x y -> size_args f y - size_args f x) u in
     (* Construct Δ. *)
     let delta, mu = construct_delta f a x y u in
+    Console.out 1 "[DEBUG] MU : "; Extra.StrMap.iter (fun s _ -> Console.out 1 ", %s@." s) mu;
     (* Check if [formula] is a total instance of [a]. *)
     match is_total_instance a formula f x y with
     | Some(_)   ->
@@ -257,17 +262,17 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
         delta, Vari(fst alpha), mu
     | None      ->
         let proof' = Eval.whnf proof in
-        Console.out 4 " [DEBUG]Subcase on [%a]@." Print.pp (unfold proof');
+        Console.out 1 " [DEBUG]Subcase on [%a]@." Print.pp (unfold proof');
         match unfold proof' with
         |Vari(_)    ->
-            Console.out 1 "[DEBUG] Var : [%a]@." Print.pp (unfold proof');
+            Console.out 4 "[DEBUG] Var : [%a]@." Print.pp (unfold proof');
             delta, proof', mu
         |Symb(_)    ->
-            Console.out 1 "[DEBUG] Symb : [%a]@." Print.pp (unfold proof');
+            Console.out 4 "[DEBUG] Symb : [%a]@." Print.pp (unfold proof');
             delta, proof', mu
         |Abst(t, u) ->
             let (x_var, u) = Bindlib.unbind u in
-            Console.out 1 "[DEBUG] Abst(t, u) : @. t : [%a]@. u : [%a]@. formula : [%a]@." Print.pp t Print.pp u Print.pp formula;
+            Console.out 4 "[DEBUG] Abst(t, u) : @. t : [%a]@. u : [%a]@. formula : [%a]@." Print.pp t Print.pp u Print.pp formula;
             let whnf_formula = Eval.whnf formula in
             Console.out 4 "  [DEBUG] TERM Abst : [%a] ABST WHNF : [%a]@." Print.pp (unfold proof') Print.pp formula;
             let t', u' = get_prod whnf_formula x_var in (* FIXME check if t = t'. *)
@@ -284,14 +289,18 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
             in
             delta, List.fold_left elim_hyp proof_b hypotheses, mu
         |Appl(u, v)  ->
-        Console.out 1 "[DEBUG] Appl(u, v) : @. u : [%a]@. v : [%a]@. formula : [%a]@." Print.pp u Print.pp v Print.pp formula;
+        Console.out 4 "[DEBUG] Appl(u, v) : @. u : [%a]@. v : [%a]@. formula : [%a]@." Print.pp u Print.pp v Print.pp formula;
             let type_u, constraints = Infer.infer context u in
-            if constraints <> [] then
+            (match Unif.solve Extra.StrMap.empty true {Unif.no_problems with Unif.to_solve = constraints} with
+             Some([])   -> Console.out 1 "INFER OK.@."
+            |Some(_)    -> Console.out 1 "INFER KO.@."
+            |None       -> Console.out 1 "INFER ERROR.@.");
+            (*if constraints <> [] then
                 (Console.out 1 "[DEBUG] Context : @.";
                 List.iter (fun (v, t) -> Console.out 1 " %a : %a @." Print.pp (Vari(v)) Print.pp t) context;
                 Console.out 1 "[DEBUG] Constraints on infer of [%a] : @." Print.pp u;
                 List.iter (fun (x, y) -> Console.out 1 "[DEBUG] [%a] ≡ [%a] @." Print.pp x Print.pp y) constraints);
-            assert (constraints = []);
+            assert (constraints = []); *)
             Console.out 4 "  [DEBUG] TERM : [%a] APPL WHNF : [%a]@." Print.pp (unfold proof') Print.pp type_u;
             let whnf_type_u = Eval.whnf type_u in
             let x_var = Bindlib.new_var mkfree "X" in
@@ -306,6 +315,7 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
                     d
                 else y::d
                 in
+            Console.out 4 "[DEBUG] Calculating new delta in Appl@.";
             let new_delta, new_v, mu_v =
                 if check_term_iota type_v then
                     delta_u, v, Extra.StrMap.empty
@@ -313,18 +323,29 @@ let rec deskolemize : Sign.t -> Ctxt.t -> term -> term -> term -> sym -> term
                     let delta_v, new_v, mu_v = deskolemize sign context axiom type_v v f pa iota in
                     List.fold_left exist_delta delta_u delta_v, new_v, mu_v in
             let not_exist_env = fun y -> List.for_all (fun x -> not (Basics.eq (get_term_context x) (get_term_context y))) delta in
+            Console.out 4 "[DEBUG] Filter hypotheses in Appl@.";
             let hypotheses = List.filter not_exist_env new_delta in
+            Console.out 4 "[DEBUG] Generating the new proof in Appl@.";
             let proof_b = Appl(new_u, new_v) in
+            Console.out 4 "[DEBUG] Eliminating hypotheses in Appl@.";
             let elim_hyp = fun pb alpha ->
+                Console.out 4 "[DEBUG] Alpha = %s@."  (Bindlib.name_of (fst alpha));
+                Console.out 4 "[DEBUG] MAP U v V : "; Extra.StrMap.iter (fun s _ -> Console.out 1 ", %s@." s) (Extra.StrMap.union (fun _ x _ -> Some(x)) mu_u mu_v);
                 let u = Extra.StrMap.find (alpha |> fst |> Bindlib.name_of) (Extra.StrMap.union (fun _ x _ -> Some(x)) mu_u mu_v) in
-                elim_hypothesis sign u f x y a pa formula pb
+                Console.out 4 "[DEBUG] Return the eliminated hypotheses@.";
+                let eh = elim_hypothesis sign u f x y a pa formula pb in
+                Console.out 4 "[DEBUG] Post return the eliminated hypotheses@.";
+                eh
             in
+            Console.out 4 "[DEBUG] Test convertability in Appl@.";
             Infer.conv formula (subst_var x_var type_w new_v);
             if Pervasives.(!Infer.constraints) <> [] then (* check if [v'/x]w ≃ B. *)
-                Console.out 4 "[DEBUG] Constraints on conv of [%a] and [%a]: @." Print.pp formula Print.pp (subst_var x_var type_w new_v);
-                List.iter (fun (x, y) -> Console.out 4 "[DEBUG] [%a] ≡ [%a] @." Print.pp x Print.pp y) (Pervasives.(!Infer.constraints));
-
-            (delta, List.fold_left elim_hyp proof_b hypotheses, mu)
+                (Console.out 4 "[DEBUG] Constraints on conv of [%a] and [%a]: @." Print.pp formula Print.pp (subst_var x_var type_w new_v);
+                List.iter (fun (x, y) -> Console.out 4 "[DEBUG] [%a] ≡ [%a] @." Print.pp x Print.pp y) (Pervasives.(!Infer.constraints)));
+            Console.out 4 "[DEBUG] Return delta, hypotheses, mu in Appl@.";
+            Console.out 4 "[DEBUG] MAP U : "; Extra.StrMap.iter (fun s _ -> Console.out 1 ", %s@." s) mu;
+            let dhm = (delta, List.fold_left elim_hyp proof_b hypotheses, mu) in
+            Console.out 1 "[DEBUG] Post return delta, hypotheses, mu in Appl@."; dhm
         |_      -> assert false
 
 

@@ -1,5 +1,5 @@
-require logic.zen as zen
-require eprover_trace
+require example.logic.zen as zen
+require example.eprover_trace as eprover_trace
 definition delta : zen.Proof (zen.imp
  (zen.not
  (zen.exists (zen.iota)
@@ -7,8 +7,8 @@ definition delta : zen.Proof (zen.imp
  eprover_trace.{|p|} (eprover_trace.{|a|}) (eprover_trace.{|s|} (eprover_trace.{|s|} ({|v_Vm|})))))) (zen.forall (zen.iota)
  (λ ({|v_Vn|} : zen.term (zen.iota)),
  zen.not
- (eprover_trace.{|p|} (eprover_trace.{|a|}) (eprover_trace.{|s|} (eprover_trace.{|s|} ({|v_Vn|}))))))) 
- ≔ 
+ (eprover_trace.{|p|} (eprover_trace.{|a|}) (eprover_trace.{|s|} (eprover_trace.{|s|} ({|v_Vn|})))))))
+ ≔
  zen.nnpp (zen.imp
  (zen.not
  (zen.exists (zen.iota)

@@ -1,19 +1,19 @@
-require lemmas.c_0_4 as c_0_4
-require lemmas.c_0_5 as c_0_5
-require lemmas.c_0_6 as c_0_6
-require lemmas.c_0_7 as c_0_7
-require lemmas.c_0_8 as c_0_8
-require lemmas.c_0_9 as c_0_9
-require lemmas.c_0_10 as c_0_10
-require lemmas.c_0_11 as c_0_11
-require lemmas.c_0_12 as c_0_12
-require lemmas.c_0_13 as c_0_13
-require lemmas.c_0_14 as c_0_14
-require lemmas.c_0_15 as c_0_15
-require lemmas.c_0_16 as c_0_16
+require example.lemmas.c_0_4 as c_0_4
+require example.lemmas.c_0_5 as c_0_5
+require example.lemmas.c_0_6 as c_0_6
+require example.lemmas.c_0_7 as c_0_7
+require example.lemmas.c_0_8 as c_0_8
+require example.lemmas.c_0_9 as c_0_9
+require example.lemmas.c_0_10 as c_0_10
+require example.lemmas.c_0_11 as c_0_11
+require example.lemmas.c_0_12 as c_0_12
+require example.lemmas.c_0_13 as c_0_13
+require example.lemmas.c_0_14 as c_0_14
+require example.lemmas.c_0_15 as c_0_15
+require example.lemmas.c_0_16 as c_0_16
 
-require logic.zen as zen
-require eprover_trace
+require example.logic.zen as zen
+require example.eprover_trace as eprover_trace
 
 symbol iota_b : zen.term zen.iota
 
