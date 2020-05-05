@@ -1,10 +1,7 @@
 // Calculus of Construction embedded into Lambda-Pi Modulo
 
-constant symbol Nat : TYPE
-
-
 constant symbol uT : TYPE
-symbol eT : uT → TYPE
+injective symbol eT : uT → TYPE
 
 constant symbol Pi : Π (X : uT), ((eT X) → uT) → uT
 constant symbol PiT : (uT → uT) → uT

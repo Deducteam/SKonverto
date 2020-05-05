@@ -197,10 +197,14 @@ let elim_hypothesis :
     let fu = Basics.add_args (Symb(f)) u in
     (* (z / fu) pb. *)
     let fresh_pb = subst_inv fu z pb in (* PEUT ETRE ÇA BUG ICI A CAUSE DE L'ABSENCE DU EXISTS ET FORALL. *)
+    Console.out 4 "AVANT : [%a]@." Print.pp_term pb;
+    Console.out 4 "APRÈS : [%a]@." Print.pp_term fresh_pb;
     (* (u / x) a. *)
     let hu = subst_mvar x a u in
+    Console.out 4 "HU : [%a]@." Print.pp_term hu;
     (* (u / x, z / y) a. *)
     let huz = subst_var y hu (Vari z) in
+    Console.out 1 "HUZ : [%a]@." Print.pp_term huz;
     let h = Bindlib.new_var mkfree "h" in
     (* λ (h : huz), (z / fu) pb. *)
     let h_lambda = Abst(huz, Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
@@ -212,7 +216,9 @@ let elim_hypothesis :
     let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
     Console.out 4 "[DEBUG] Final step in elim_hypothesis@.";
-    Basics.add_args pa (u @ [b; z_lambda])
+    let pa_u_b_l = Basics.add_args pa (u @ [unProof b; z_lambda]) in
+    Console.out 1 "END ELIM HYP : [%a]@." Print.pp_term pa_u_b_l;
+    pa_u_b_l
 
 (** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
 let get_prod : term -> term Bindlib.var -> term * term = fun t x ->
@@ -225,10 +231,10 @@ let get_var_context = fun (v, _, _) -> v
 
 let rec deskolemize : Sign.t -> ctxt -> term -> term -> term -> sym -> term
     -> term -> ctxt * term * term list Extra.StrMap.t = fun sign context axiom formula proof f pa iota ->
-    Console.out 4 "[DEBUG] Deskolemize on @. B := [%a]@. Proof := [%a] @." Print.pp_term formula Print.pp_term proof;
+    Console.out 4 "[DEBUG] Deskolemize on @. B := [%a]@. P := [%a]@." Print.pp_term formula Print.pp_term proof;
     (* Get the variables x̅ and y. *)
     Console.out 4 "[Debug] geting [x̅] from [%a]@." Print.pp_term axiom;
-    let x, a = get_x (unProof axiom) in
+    let x, a = get_x axiom in
     Console.out 4 "[Debug] geting [y] from [%a]@." Print.pp_term a;
     let y, a = get_y a in
     Console.out 4 "[Debug] construct [f(x̅)] from [%a]@." Print.pp_term a;
@@ -238,6 +244,7 @@ let rec deskolemize : Sign.t -> ctxt -> term -> term -> term -> sym -> term
     let bind_var t x_var = Abst(iota, Bindlib.unbox (Bindlib.bind_var x_var (lift t))) in
     Console.out 4 "[Debug] constructing lambdas [λ(x̅ : term iota).[f(x̅)/y]A] @.";
     let x_a_fx = List.fold_left bind_var a_fx x in
+    Console.out 4 "[DEBUG] X_A_FX : [%a]@." Print.pp_term x_a_fx;
     Console.out 4 "[Debug] calculating U̅ᵢ@.";
     (* Calculate U̅ᵢ *)
     let u = get_ui f [] (unfold formula) in
@@ -256,6 +263,9 @@ let rec deskolemize : Sign.t -> ctxt -> term -> term -> term -> sym -> term
     let u = List.sort (fun x y -> size_args f y - size_args f x) u in
     (* Construct Δ. *)
     let delta, mu = construct_delta f a x y u in
+    Console.out 4 "[DEBUG] DELTA  [%a] : " Print.pp_term formula;
+    List.iter (fun (v, t, _) -> Console.out 4 "%a : %a," Print.pp_tvar v Print.pp_term t) delta;
+    Console.out 4 "@.";
     Console.out 4 "[DEBUG] MU : "; Extra.StrMap.iter (fun s _ -> Console.out 4 ", %s@." s) mu;
     (* Check if [formula] is a total instance of [a]. *)
     match is_total_instance a formula f x y with
@@ -264,8 +274,9 @@ let rec deskolemize : Sign.t -> ctxt -> term -> term -> term -> sym -> term
             (fun (_, x, _) -> Rewrite.eq [] formula x) delta in
         delta, Vari(get_var_context alpha), mu
     | None      ->
+        Console.out 4 " [DEBUG] PROOF : [%a]@." Print.pp_term proof;
         let proof' = Eval.whnf [] proof in
-        Console.out 4 " [DEBUG]Subcase on [%a]@." Print.pp_term (unfold proof');
+        Console.out 4 " [DEBUG] WHNF  : [%a]@." Print.pp_term (unfold proof');
         match unfold proof' with
         |Vari(_)    ->
             Console.out 4 "[DEBUG] Var : [%a]@." Print.pp_term (unfold proof');
@@ -360,7 +371,7 @@ let test : Sign.t -> unit = fun sign ->
     Console.out 4 "[Debug] symbol of A@.";
     let pa_symb = Extra.StrMap.find "A" !(sign.sign_builtins) in
     Console.out 4 "[Debug] type of A@.";
-    let a = !(pa_symb.sym_type) in
+    let a = unProof !(pa_symb.sym_type) in
     Console.out 4 "[Debug] proof of A@.";
     let pa = Symb(pa_symb) in
     Console.out 4 "[Debug] symbol of B@.";

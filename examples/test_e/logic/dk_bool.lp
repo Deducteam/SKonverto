@@ -1,9 +1,9 @@
-require example.logic.cc as cc
+require open example.logic.cc
 // Bool
 // Declaration
-constant symbol bool : cc.uT
+constant symbol bool : uT
 constant symbol Bool : TYPE
-rule cc.eT bool ↪ Bool
+rule eT bool ↪ Bool
 
 // Constructors
 constant symbol true : Bool
@@ -11,11 +11,11 @@ constant symbol false : Bool
 
 // Pattern-matching
 symbol match :
-  Π (P : Bool → cc.uT),
-  cc.eT (P true) →
-  cc.eT (P false) →
+  Π (P : Bool → uT),
+  eT (P true) →
+  eT (P false) →
   Π (b : Bool),
-  cc.eT (P b)
+  eT (P b)
 
 rule match _ $Ht _ true ↪ $Ht
 rule match _ _ $Hf false ↪ $Hf
@@ -23,11 +23,11 @@ rule match _ _ $Hf false ↪ $Hf
 // Operations
 // polymorphic if .. then .. else ..
 symbol ite :
-  Π (A : cc.uT),
+  Π (A : uT),
   Bool →
-  cc.eT A →
-  cc.eT A →
-  cc.eT A
+  eT A →
+  eT A →
+  eT A
 
 rule ite $A $b $x $y
       ↪
@@ -35,19 +35,19 @@ rule ite $A $b $x $y
 
 symbol match__true :
   Bool →
-  Π (A : cc.uT),
-  cc.eT A →
-  cc.eT A →
-  cc.eT A
+  Π (A : uT),
+  eT A →
+  eT A →
+  eT A
 
 rule match__true $b $A $t $e ↪ ite $A $b $t $e
 
 symbol match__false :
   Bool →
-  Π (A : cc.uT),
-  cc.eT A →
-  cc.eT A →
-  cc.eT A
+  Π (A : uT),
+  eT A →
+  eT A →
+  eT A
 
 rule match__false $b $A $t $e ↪ ite $A $b $e $t
 
