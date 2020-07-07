@@ -1,5 +1,5 @@
-require example.logic.zen as zen
-symbol {|a|} : zen.term (zen.iota)
-symbol {|p|} : zen.term (zen.iota) ⇒ zen.term (zen.iota) ⇒  zen.prop
-symbol {|s|} : zen.term (zen.iota) ⇒  zen.term (zen.iota)
-symbol {|f|} : zen.term (zen.iota) ⇒  zen.term (zen.iota)
+require open logic.zen
+constant symbol a : τ ι
+constant symbol p : τ ι → τ ι →  Prop
+constant symbol s : τ ι →  τ ι
+constant symbol f : τ ι →  τ ι
