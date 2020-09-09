@@ -1,4 +1,3 @@
-require example.logic.zen as zen
 require example.test_e as test_e
 
 symbol axiom_A : zen.Proof (zen.forall (zen.iota) (λ (X1 : (zen.term zen.iota)), zen.exists (zen.iota) (λ (Y : zen.term zen.iota), (test_e.{|p|} X1 Y ))))

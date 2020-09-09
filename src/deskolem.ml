@@ -55,11 +55,11 @@ let rec get_ui : sym -> tvar list  -> term list list -> term -> term list list =
             else
                 []::l
         else
-            l         
+            l
     | Prod( a, b)               ->
         let (x, b) = Bindlib.unbind b in
         let l = get_ui f vlist l a in
-        get_ui f (x::vlist) l b 
+        get_ui f (x::vlist) l b
     | Abst( a, b)               ->
         let (x, b) = Bindlib.unbind b in
         let l = get_ui f vlist l a in
@@ -103,7 +103,7 @@ let size_args : sym -> term list -> int = fun f args ->
 (** [subst_var x m n] substitutes the variable [x] with the term [n] inside the
     term [m].*)
 let subst_var : term Bindlib.var -> term -> term -> term = fun x m n ->
-    Console.out 4 "subst_var [ %a / %a] %a@." Print.pp_term n Print.pp_var x Print.pp_term m; 
+    Console.out 4 "subst_var [ %a / %a] %a@." Print.pp_term n Print.pp_var x Print.pp_term m;
     Bindlib.subst (Bindlib.unbox (Bindlib.bind_var x (lift m))) n
 
 (** [subst_mvar x m n] substitutes all variables that [x] contains with the terms
@@ -122,7 +122,7 @@ let rec unProof : Sign.t -> term -> term = fun sign t ->
     Console.out 4 "unProof [%a]@." Print.pp_term t;
     match unfold t with
     |Appl(Symb({sym_name = "π"; _}), t') -> t'
-    |Prod(a, b) -> 
+    |Prod(a, b) ->
         (try
             let unProofA = try unProof sign a with Not_Proof _ -> raise (Not_ProofS a) in
             let imp = Extra.StrMap.find "imp" !(sign.sign_builtins) in
@@ -137,7 +137,7 @@ let rec unProof : Sign.t -> term -> term = fun sign t ->
                 raise (Not_Proof t))
 
     |Abst(_, _) -> Console.out 4 "ABST NOT PROOF : %a@." Print.pp_term t; raise (Not_Proof t)
-    |_                                          -> 
+    |_                                          ->
         Console.out 4 "Other cases NOT PROOF : %a@." Print.pp_term t; raise (Not_Proof t)
 
 (** [unProofCheck t] returns true if the proposition is a proof. *)
@@ -145,9 +145,9 @@ let rec unProofCheck : Sign.t -> term -> bool = fun sign t ->
     Console.out 4 "unProof [%a]@." Print.pp_term t;
     match unfold t with
     |Appl(Symb({sym_name = "π"; _}), _) -> true
-    |Prod(a, b) -> 
+    |Prod(a, b) ->
         (try
-            if not (unProofCheck sign a) then 
+            if not (unProofCheck sign a) then
                 raise (Not_ProofS a)
             else
                 unProofCheck sign (Bindlib.unbind b |> snd)
@@ -159,7 +159,7 @@ let rec unProofCheck : Sign.t -> term -> bool = fun sign t ->
                 false)
 
     |Abst(_, _) -> Console.out 4 "ABST NOT PROOF : %a@." Print.pp_term t; false
-    |_                                          -> 
+    |_                                          ->
         Console.out 4 "Other cases NOT PROOF : %a@." Print.pp_term t; false
 
 
@@ -178,7 +178,7 @@ let is_total_instance :
     let a' = subst_mvar x a' (Array.to_list x_tref) in (* FIXME to_list is called before of_list in susbt_mvar *)
     let nf_a = a' in
     let nf_b = Eval.snf [] b in
-    Console.out 4 "NFA : %a@.NFB : %a@." Print.pp_term nf_a Print.pp_term nf_b;
+    (* Console.out 4 "NFA : %a@.NFB : %a@." Print.pp_term nf_a Print.pp_term nf_b; *)
     if Rewrite.eq [] nf_a nf_b then
         begin
             Console.out 4 "IS TOTAL INSTANCE OK@.";
@@ -209,17 +209,17 @@ let construct_delta :
     let add_context = fun (e, m, inst_map) u ->
         let ax = subst_mvar x a_y u in
         Console.out 4 "Construct Delta : A = %a AX = %a@." Print.pp_term a Print.pp_term ax;
-        let pi = Extra.StrMap.find "proof" !(sign.sign_builtins) in 
+        let pi = Extra.StrMap.find "proof" !(sign.sign_builtins) in
         let pi_ax = Appl(Symb pi, ax) in
         let fu = subst_mvar x fx u in
-        let var, inst_map = 
-                try 
-                    Console.out 4 "Old alpha"; 
+        let var, inst_map =
+                try
+                    Console.out 4 "Old alpha";
                     snd (List.find (fun (x, _) -> Eval.eq_modulo [] fu x) inst_map), inst_map
                 with Not_found -> count := !count + 1;
                  let v = Bindlib.new_var mkfree ("alpha"^(string_of_int !count)) in v, (fu, v)::inst_map in
         (var, pi_ax, None)::e, Extra.IntMap.add (Bindlib.uid_of var) u m, inst_map in
-    List.fold_left add_context ([], Extra.IntMap.empty, inst_map) ui 
+    List.fold_left add_context ([], Extra.IntMap.empty, inst_map) ui
 
 (** [get_x t] return the list of quantified variables [x₀; x₁; ...; xₙ] and a
     term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
@@ -285,7 +285,7 @@ let elim_hypothesis :
     (* zen.iota *)
     Console.out 4 "[DEBUG] Iota step in elim_hypothesis@.";
     let iota = type_elm sign "iota_b" in
-    (* λ (z : iota), λ (h : huz), (z / fu) pb. *)   
+    (* λ (z : iota), λ (h : huz), (z / fu) pb. *)
     Console.out 4 "[DEBUG] Constructing Abstraction step in elim_hypothesis@.";
     let z_lambda = Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
@@ -325,10 +325,10 @@ let rec intro_axioms : ctxt -> term -> term -> ctxt * term * term = fun ctxt pro
             let _, b' = Bindlib.unbind b' in
             intro_axioms ((x, a, None)::ctxt) b b'
         |_                          ->
-            Console.out 4 "intro_axioms : %a %a" Print.pp_term (Eval.whnf [] proof) Print.pp_term formula; assert false 
+            Console.out 4 "intro_axioms : %a %a" Print.pp_term (Eval.whnf [] proof) Print.pp_term formula; assert false
 
 let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -> sym -> term
-    -> term -> tvar * term * term option -> ctxt * term * term list Extra.IntMap.t * ((term * tvar) list) = 
+    -> term -> tvar * term * term option -> ctxt * term * term list Extra.IntMap.t * ((term * tvar) list) =
     fun sign inst_map context axiom formula proof f pa iota ax2 ->
     Console.out 4 "[DEBUG] Deskolemize on @. B := [%a]@. P := [%a]@." Print.pp_term formula Print.pp_term proof;
     List.iter (fun (x, y) -> Console.out 4 "INST_MAP : (%a, %a)@." Print.pp_term x Print.pp_var y) inst_map;
@@ -347,11 +347,11 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
     Console.out 4 "[DEBUG] X_A_FX : [%a]@." Print.pp_term x_a_fx;
     Console.out 4 "[Debug] calculating U̅ᵢ@.";
     (* Calculate U̅ᵢ *)
-    let pi = Extra.StrMap.find "proof" !(sign.sign_builtins) in 
-    let rec deskolem : (term * tvar) list -> ctxt -> term -> term -> ctxt * term * term list Extra.IntMap.t * ((term * tvar) list) = 
+    let pi = Extra.StrMap.find "proof" !(sign.sign_builtins) in
+    let rec deskolem : (term * tvar) list -> ctxt -> term -> term -> ctxt * term * term list Extra.IntMap.t * ((term * tvar) list) =
         fun inst_map context formula proof ->
-        Console.out 4 "[DEBUG] formula : %a@." Print.pp_term formula; 
-        Console.out 4 "[DEBUG] proof : %a@." Print.pp_term proof; 
+        Console.out 4 "[DEBUG] formula : %a@." Print.pp_term formula;
+        Console.out 4 "[DEBUG] proof : %a@." Print.pp_term proof;
         if unProofCheck sign formula then
         begin
             let u = get_ui f [] [] (unfold formula) in
@@ -363,9 +363,9 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
                 try
                     (* Don't add ∀ x̅, (f x̅ / y) A. *)
                     let gtc_alpha = get_term_context alpha in
-                    try 
+                    try
                         (* START CLEAN HERE. *)
-                        Console.out 4 "Axiom : %a@." Print.pp_term gtc_alpha;
+                        (* Console.out 4 "Axiom : %a@." Print.pp_term gtc_alpha;
                         let axiom = unProof sign gtc_alpha in
                         Console.out 4 "Axiom After UnProof : %a@." Print.pp_term axiom;
                         let axiom = List.nth (Basics.get_args axiom |> snd) 1 in
@@ -378,7 +378,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
 
                         if Eval.eq_modulo [] axiom x_a_fx then
                             u
-                        else 
+                        else*)
                         (* END CLEAN HERE. *)
                             get_ui f [] u gtc_alpha
                     with Failure _ -> (Console.out 4 "Fail [%a]@." Print.pp_term gtc_alpha; get_ui f [] u gtc_alpha)
@@ -396,7 +396,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
             Console.out 4 "@.";
             (* Check if [formula] is a total instance of [a]. *)
             Console.out 4 "IS TOTAL INSTANCE [%a] OF [%a]@." Print.pp_term formula Print.pp_term a;
-        
+
             match is_total_instance (Appl(Symb pi, a)) formula f x y with
             | Some(_)   ->
                 Console.out 4 "[DEBUG] Find [%a]@." Print.pp_term formula;
@@ -408,7 +408,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
                 Console.out 4 "[DEBUG] Is total instance OK";
                 let alpha =
                     try List.find
-                        (fun (_, x, _) -> Eval.eq_modulo [] formula x) delta 
+                        (fun (_, x, _) -> Eval.eq_modulo [] formula x) delta
                     with Not_found -> Console.out 4 "formula : [%a]@." Print.pp_term formula; assert false in
                 delta, Vari(get_var_context alpha), mu, inst_map'
             | None      ->
@@ -554,8 +554,8 @@ let test : Sign.t -> unit = fun sign ->
     (* Console.out 4 "before : [%a]@." Print.pp_term (Eval.whnf [] pb); *)
     Console.out 1 "%a@." Print.pp_term proof';
     let oc = Format.formatter_of_out_channel (open_out "test.lp") in
-    Stdlib.(Console.out_fmt := oc); 
-    Console.out 1 "testing @. dada" 
+    Stdlib.(Console.out_fmt := oc);
+    Console.out 4 "testing @. dada"
     (* List.iter (Console.out 4 "arg : %a@." Print.pp_term) (get_option ui_ref) *)
     (* Console.out 4 "B : %a@." Print.pp_term b *)
     (* let proof_term = Sign.find sign "delta" in *)
