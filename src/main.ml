@@ -1,5 +1,6 @@
 open Core
-open Extra
+open! Lplib
+
 (*
 (** [sig_of_file f] returns the signature of the file path [f]. *)
 let sig_of_file : string -> Sign.t = fun fname ->
@@ -17,7 +18,7 @@ let _ =
   let usage = Printf.sprintf "Usage: %s [OPTIONS] [FILES]" Sys.argv.(0) in
   let files = ref [] in
   Arg.parse spec (fun s -> files := s :: !files) usage;
-  Files.init_lib_root ();
+  Files.set_lib_root None;
   files := List.rev !files;
   let process_file s = s |> Compile.compile_file |> Deskolem.test in
   List.iter process_file !files

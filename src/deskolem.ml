@@ -1,4 +1,5 @@
 open Core
+open! Lplib
 open Terms
 open Timed
 
@@ -492,7 +493,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
                     Console.out 4 "[DEBUG] Eliminating hypotheses in Appl@.";
                     let elim_hyp = fun pb alpha ->
                         Console.out 4 "[DEBUG] Alpha = %s@."  (Bindlib.name_of (get_var_context alpha));
-                        Console.out 4 "[DEBUG] MAP U v V : "; Extra.IntMap.iter (fun s t -> Console.out 4 ", %d => [%a]@." s (Extra.List.pp Print.pp_term "; ") t)  (Extra.IntMap.union (fun _ x _ -> Some(x)) mu_u mu_v);
+                        Console.out 4 "[DEBUG] MAP U v V : "; Extra.IntMap.iter (fun s t -> Console.out 4 ", %d => [%a]@." s (List.pp Print.pp_term "; ") t)  (Extra.IntMap.union (fun _ x _ -> Some(x)) mu_u mu_v);
                         let u = Extra.IntMap.find (alpha |> get_var_context |> Bindlib.uid_of) (Extra.IntMap.union (fun _ x _ -> Some(x)) mu_u mu_v) in
                         Console.out 4 "[DEBUG] Return the eliminated hypotheses@.";
                         let fu = Basics.add_args (Symb f) u in
