@@ -16,7 +16,7 @@ jobs:
         ocaml-version: ${{ matrix.ocaml-version }}
     - name: Installing the last version of lambdapi
       run: |
-        opam install menhir dune bindlib.5.0.0 timed.1.0 earley.2.0.0 yojson cmdliner ppx_inline_test why3.1.2.0 -y
+        opam install dune bindlib timed menhir pratter yojson cmdliner why3 alcotest alt-ergo odoc
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
     - name: main
       run: opam exec -- dune build
