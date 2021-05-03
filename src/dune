@@ -1,5 +1,5 @@
 (executable
   (name main)
   (public_name skonverto)
-  (libraries lambdapi.core)
+  (libraries lambdapi.core lambdapi.handle)
 )
