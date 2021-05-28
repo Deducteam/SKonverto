@@ -297,8 +297,9 @@ let elim_hypothesis :
     let ndsig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded  in
     let ex_E = Sign.find ndsig "∃E" in
     let applied_pa = Term.add_args pa u in
+    let applied_a = mk_Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift huz))) in
     let pa_u_b_l = Term.add_args (mk_Symb ex_E) 
-                     [iota; a; applied_pa; unProof sign b; z_lambda] in
+                     [applied_a; applied_pa; unProof sign b; z_lambda] in
     Common.Console.out 4 "END ELIM HYP : [%a]@." Print.pp_term pa_u_b_l;
     pa_u_b_l
 
