@@ -122,7 +122,7 @@ exception Not_ProofS of term
 let rec unProof : Sign.t -> term -> term = fun sign t ->
     Common.Console.out 4 "unProof [%a]@." Print.pp_term t;
     match unfold t with
-    |Appl(Symb({sym_name = "π"; _}), t') -> t'
+    |Appl(Symb({sym_name = "ϵ"; _}), t') -> t'
     |Prod(a, b) ->
         (try
             let unProofA = try unProof sign a with Not_Proof _ -> raise (Not_ProofS a) in
@@ -145,7 +145,7 @@ let rec unProof : Sign.t -> term -> term = fun sign t ->
 let rec unProofCheck : Sign.t -> term -> bool = fun sign t ->
     Common.Console.out 4 "unProof [%a]@." Print.pp_term t;
     match unfold t with
-    |Appl(Symb({sym_name = "π"; _}), _) -> true
+    |Appl(Symb({sym_name = "ϵ"; _}), _) -> true
     |Prod(a, b) ->
         (try
             if not (unProofCheck sign a) then
@@ -229,7 +229,7 @@ let rec get_x : term -> term Bindlib.var list * term = fun t ->
     match s with
     |Symb({sym_name = "∀"; _})     ->
         (
-            match List.nth args 1 with
+            match List.nth args 0 with
             |Abst(_, b) ->
                 let x, b = Bindlib.unbind b in
                 let x', b' = get_x b in
@@ -245,7 +245,7 @@ let get_y : term -> term Bindlib.var * term = fun t ->
     match s with
     |Symb({sym_name = "∃"; _})     ->
         (
-            match unfold (List.nth args 1) with
+            match unfold (List.nth args 0) with
             |Abst(_, b) -> Bindlib.unbind b
             |_          -> assert false
         )
@@ -286,7 +286,8 @@ let elim_hypothesis :
     let h_lambda = mk_Abst(mk_Appl(mk_Symb pi, huz), Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
     (* zen.iota *)
     Common.Console.out 4 "[DEBUG] Iota step in elim_hypothesis@.";
-    let iota = type_elm sign "iota_b" in
+    let folsig = Common.Path.(Map.find (of_string "logic.fol")) !Sign.loaded in
+    let iota = mk_Symb (Sign.find folsig "κ") in
     (* λ (z : iota), λ (h : huz), (z / fu) pb. *)
     Common.Console.out 4 "[DEBUG] Constructing Abstraction step in elim_hypothesis@.";
     let z_lambda = mk_Abst(iota, Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
@@ -318,7 +319,7 @@ let get_var_context = fun (v, _, _) -> v
 
 let check_bottom : term -> bool = fun t ->
     match unfold t with
-    |Appl(Symb({sym_name = "π"; _}), Symb({sym_name = "⊥"; _})) -> true
+    |Appl(Symb({sym_name = "ϵ"; _}), Symb({sym_name = "⊥"; _})) -> true
     |_                                                          -> false
 
 let rec intro_axioms : ctxt -> term -> term -> ctxt * term * term = fun ctxt proof formula ->
@@ -678,7 +679,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term -
 
 let test : Sign.t -> unit = fun sign ->
     Common.Console.out 4 "[Debug] getting iota@.";
-    let iota = Extra.StrMap.find "iota" !(sign.sign_builtins) in
+    let iota = Extra.StrMap.find "iota_b" !(sign.sign_builtins) in
     Common.Console.out 4 "[Debug] skolem_symbol@.";
     let f = Extra.StrMap.find "skolem_symbol" !(sign.sign_builtins) in
     Common.Console.out 4 "[Debug] symbol of A@.";
