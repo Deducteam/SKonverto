@@ -13,45 +13,52 @@ type config =
   ; symb_Formula    : sym
   ; symb_imp        : sym
   ; symb_forall     : sym
+  ; symb_exists     : sym
+  ; symb_tau        : sym
+  ; symb_bot        : sym
   ; symb_proof      : sym }
 
 (** [get_config sign] build the configuration using [sign]. *)
 let get_config : Sign.t -> config = fun sign ->
+  let fol_sig = Common.Path.(Map.find (of_string "logic.fol")) !Sign.loaded in
+  let zen_sig = Common.Path.(Map.find (of_string "logic.zen")) !Sign.loaded in
   let builtin name = Extra.StrMap.find name !(sign.sign_builtins) in
   { symb_Skolem     = builtin "Skolem" 
   ; symb_Axiom      = builtin "Axiom" 
   ; symb_Formula    = builtin "Formula" 
   ; symb_imp        = builtin "imp"  
-  ; symb_forall     = builtin "forall"
-  ; symb_proof      = builtin "proof" }
+  ; symb_forall     = Sign.find fol_sig "∀" (* DISCUSS *)
+  ; symb_exists     = Sign.find fol_sig "∃" (* DISCUSS *)
+  ; symb_tau        = Sign.find zen_sig "τ" (* DISCUSS *)
+  ; symb_proof      = builtin "proof" 
+  ; symb_bot        = Sign.find fol_sig "⊥" (* DISCUSS *) }
 
-(** [subst_inv fu x t] replaces all the subterms [fu] by a fresh variable [x] in
-    the term [t]. *)
-let subst_inv : term -> term Bindlib.var -> term -> term = fun fu x ->
+(** [subst_inv fu x t] replaces all the subterms [fu] by [x] in the term [t]. *)
+let subst_inv : term -> tvar -> term -> term = fun fu x ->
   let rec subst t =
     if Eval.eq_modulo [] t fu then mk_Vari x else
     match unfold t with
-    | Vari _        -> t
-    | Type          -> t
-    | Kind          -> t
-    | Symb _        -> t
-    | Prod( a, b)   ->
+    | Vari _
+    | Type
+    | Kind
+    | Symb _ -> t
+    | Prod(a, b) ->
         let (v, b) = Bindlib.unbind b in
         let sa = subst a in
         let sb = Bindlib.bind_var v (lift (subst b)) in
         mk_Prod (sa, Bindlib.unbox sb)
-    | Abst( a, b)   ->
+    | Abst(a, b) ->
         let (v, b) = Bindlib.unbind b in
         let sa = subst a in
         let sb = Bindlib.bind_var v (lift (subst b)) in
         mk_Abst (sa, Bindlib.unbox sb)
-    | Appl( a, b)   -> mk_Appl (subst a, subst b)
+    | Appl(a, b) -> mk_Appl (subst a, subst b)
     | Meta _
     | Patt _
     | TEnv _
     | Wild
     | LLet _
-    | TRef _        -> assert false (* is not handled in the encoding. *)
+    | TRef _ -> assert false (* is not handled in the encoding. *)
   in subst
 
 (** [frozen l t] checks if a term [t] contains one of the variables of [l]. *)
@@ -60,14 +67,15 @@ let frozen : tvar list -> term -> bool = fun l t ->
     (* check if all elements of [l] do not occur in [t]. *)
     List.for_all (fun x -> not (Bindlib.occur x lifted_t)) l
 
-(** [get_ui f l t] returns a list of arguments used in [f]-terms inside [t]. *)
-let rec get_ui : sym -> tvar list  -> term list list -> term -> term list list = 
-    fun f vlist l t  ->
+(** [skolem_args f l t] returns all the arguments of subterms of [t] that have 
+    the skolem symbols [f] as the head of the term. *)
+let rec skolem_args : sym -> tvar list  -> term list list -> term 
+    -> term list list = fun f vlist l t  ->
     match unfold t with
     | Vari _
     | Type
-    | Kind          -> l
-    | Symb _        ->
+    | Kind -> l
+    | Symb _ ->
         (* check if the current term [t] is the symbol [f]. *)
         if Eval.eq_modulo [] t (mk_Symb f) then
             (* and if we already have the empty argument list. *)
@@ -81,24 +89,24 @@ let rec get_ui : sym -> tvar list  -> term list list -> term -> term list list =
             *)
         else
             l
-    | Prod( a, b)   ->
+    | Prod(a, b) ->
         let (x, b) = Bindlib.unbind b in
         (* get the arguments of [f] that appear in [a]. *)
-        let l = get_ui f vlist l a in
+        let l = skolem_args f vlist l a in
         (* get the arguments of [f] that appear in [b] and could not contain
             the variable [x]. *)
-        get_ui f (x::vlist) l b
-    | Abst( a, b)   ->
+        skolem_args f (x::vlist) l b
+    | Abst(a, b) ->
         let (x, b) = Bindlib.unbind b in
         (* get the arguments of [f] that appear in [a]. *)
-        let l = get_ui f vlist l a in
+        let l = skolem_args f vlist l a in
         (* get the arguments of [f] that appear in [b] and could not contain
             the variable [x]. *)
-        get_ui f (x::vlist) l b
-    | Appl( _, _)   ->
+        skolem_args f (x::vlist) l b
+    | Appl(_, _) ->
         let (h, args) = Term.get_args t in
         (* get the arguments of [f] that appear in every argument of [t]. *)
-        let args_set = List.fold_left (get_ui f vlist) l args in
+        let args_set = List.fold_left (skolem_args f vlist) l args in
         (* check if the head symbol of [t] is [f]. *)
         if Eval.eq_modulo [] h (mk_Symb f) then
             begin
@@ -113,13 +121,13 @@ let rec get_ui : sym -> tvar list  -> term list list -> term -> term list list =
             end
         (* otherwise we build the new set of arguments the term [h]. *)
         else
-            get_ui f vlist args_set h
-    | Meta _        -> assert false
-    | Patt _        -> assert false
-    | TEnv _        -> assert false
-    | Wild          -> assert false
-    | LLet _        -> assert false
-    | TRef _        -> assert false (* is not handled in the encoding. *)
+            skolem_args f vlist args_set h
+    | Meta _ -> assert false
+    | Patt _ -> assert false
+    | TEnv _ -> assert false
+    | Wild   -> assert false
+    | LLet _ -> assert false
+    | TRef _ -> assert false (* is not handled in the encoding. *)
 
 (** [size t] return the size of the term [t]. *)
 let rec size : term -> int = fun t ->
@@ -132,73 +140,72 @@ let size_args : sym -> term list -> int = fun f args ->
 
 (** [subst_var x m n] substitutes the variable [x] with the term [n] inside the
     term [m].*)
-let subst_var : term Bindlib.var -> term -> term -> term = fun x m n ->
+let subst_var : tvar -> term -> term -> term = fun x m n ->
     Bindlib.subst (Bindlib.unbox (Bindlib.bind_var x (lift m))) n
 
-(** [subst_mvar x m n] substitutes all variables that [x] contains with the 
-    terms of [n] inside the term [m]. *)
-let subst_mvar : term Bindlib.var list -> term -> term list -> term =
-    fun x m n ->
-    let x = Array.of_list x in
-    let n = Array.of_list n in
-    Bindlib.msubst (Bindlib.unbox (Bindlib.bind_mvar x (lift m))) n
+(** [subst_mvar xs t ts] returns the term [t] with the variables of [xs] 
+    replaced by [ts] (with length(xs) = length(ts)). *)
+let subst_mvar : tvar list -> term -> term list -> term = fun xs t ts ->
+    let xs = Array.of_list xs in
+    let ts = Array.of_list ts in
+    Bindlib.msubst (Bindlib.unbox (Bindlib.bind_mvar xs (lift t))) ts
 
 (** [get_prop t] returns the proposition which is inside the `ϵ` constructor. *)
-let rec get_prop : Sign.t -> term -> term = fun sign t ->
+let rec get_prop : config -> term -> term = fun cfg t ->
     match unfold t with
-    |Appl(Symb({sym_name = "ϵ"; _}), t')    -> t'
-    |Prod(a, b)                             ->
-        let cfg = get_config sign in
-        (
+    |Appl(s, t') when Term.is_symb cfg.symb_proof s -> t'
+    |Prod(a, b) ->
+        begin
             try
                 (* get the proposition in [a]. *)
-                let prop_a = try get_prop sign a with Not_Proof _ -> 
+                let prop_a = try get_prop cfg a with Not_Proof _ -> 
                     raise (Not_ProofS a) in
                 (* check if the variable that has the type [a] is not in [b]. *)
                 assert (not (Bindlib.binder_occur b));
                 (* return the proposition of [a] => the proposition of [b]. *)
                 Term.add_args (mk_Symb cfg.symb_imp) 
-                    [prop_a; get_prop sign (Bindlib.unbind b |> snd)]
+                    [prop_a; get_prop cfg (Bindlib.unbind b |> snd)]
             with Not_ProofS _ ->
                 match a with
                 (* check if the left part of the implication is a variable 
                     declaration. *)
-                |Appl(Symb({sym_name = "τ"; _}), a') ->
+                |Appl(s, a') when Term.is_symb cfg.symb_tau s->
                     (* return that variable => the proposition of [b]. *)
                     Term.add_args (mk_Symb cfg.symb_forall) 
-                        [a'; get_prop sign (Bindlib.unbind b |> snd)]
-                |_                                  ->
+                        [a'; get_prop cfg (Bindlib.unbind b |> snd)]
+                |_  ->
                     raise (Not_Proof t)
-        )
+        end
 
-    |Abst(_, _)                             -> raise (Not_Proof t)
-    |_                                      -> raise (Not_Proof t)
+    |Abst(_, _) -> raise (Not_Proof t)
+    |_ -> raise (Not_Proof t)
 
-(** [check_epsilon t] returns true if the proposition is a proof. *)
-let rec check_epsilon : term -> bool = fun t ->
+(** [check_epsilon cfg t] returns true if the proposition is a proof. *)
+let rec check_epsilon : config -> term -> bool = fun cfg t ->
     match unfold t with
-    |Appl(Symb({sym_name = "ϵ"; _}), _) -> true
+    |Appl(s, _) when Term.is_symb cfg.symb_proof s -> true
     |Prod(a, b)                         ->
-        (try
-            if not (check_epsilon a) then
-                raise (Not_ProofS a)
-            else
-                check_epsilon (Bindlib.unbind b |> snd)
-        with Not_ProofS _ ->
-            match a with
-            |Appl(Symb({sym_name = "τ"; _}), _) ->
-                check_epsilon (Bindlib.unbind b |> snd)
-            |_                                  ->
-                false)
-
-    |Abst(_, _)                         -> false
-    |_                                  -> false
+        begin
+            try
+                if not (check_epsilon cfg a) then
+                    raise (Not_ProofS a)
+                else
+                    check_epsilon cfg (Bindlib.unbind b |> snd)
+            with Not_ProofS _ ->
+                match a with
+                |Appl(s, _) when Term.is_symb cfg.symb_tau s ->
+                    check_epsilon cfg (Bindlib.unbind b |> snd)
+                |_ ->
+                    false
+        end
+    |Abst(_, _) -> false
+    |_          -> false
 
 (** [is_total_instance a b f x y] checks if [b] is a total instance of [a] where
     we substitute [y] with [f x]. *)
 let is_total_instance :
-    term -> term -> sym -> term Bindlib.var list -> term Bindlib.var
-    -> term list option = fun a b f x y ->
+    term -> term -> sym -> tvar list -> tvar -> term list option = 
+    fun a b f x y ->
     let fx = Term.add_args (mk_Symb f) (List.map (fun x -> mk_Vari x) x) in
     (* Calculate the strong normal form before adding the TRef since we can not
         do it with TRef. *)
@@ -215,8 +222,8 @@ let is_total_instance :
             (* get the arguments of [a] where the equivalence is satisfied. *)
             let ui_tref = Array.to_list x_tref in
             let get_content = fun t -> match t with
-                | TRef(r)    -> (match !r with Some(a) -> a | _ -> assert false)
-                | _          -> assert false in
+                | TRef(r) -> (match !r with Some(a) -> a | _ -> assert false)
+                | _ -> assert false in
             Some(List.map get_content ui_tref)
         end
     else
@@ -227,15 +234,13 @@ let is_total_instance :
 
 let count = ref 0
 
-(** [construct_delta f a x y t] build the context
+(** [construct_delta cfg f a x y t] build the context
     [α₀ : (fu⁰/y, u⁰/x) a, α₁ : (fu¹/y, u¹/x) a, ..., αₖ : (fuᵏ/y, uᵏ/x) a ]
     where [uⁱ] are the arguments of [f] inside [t]. *)
 let construct_delta :
-    Sign.t -> (term * tvar) list -> sym -> term -> term Bindlib.var list 
-    -> term Bindlib.var -> term list list 
-    -> ctxt * term list Extra.IntMap.t * (term * tvar) list = 
-    fun sign inst_map f a x y ui ->
-    let cfg = get_config sign in
+    config -> (term * tvar) list -> sym -> term -> tvar list -> tvar 
+    -> term list list -> ctxt * term list Extra.IntMap.t * (term * tvar) list = 
+    fun cfg inst_map f a x y ui ->
     (* build [f ̄x]. *)
     let fx = Term.add_args (mk_Symb f) (List.map (fun x -> mk_Vari x) x) in
     (* build [f ̄x / y] a. *)
@@ -260,47 +265,45 @@ let construct_delta :
                 (Bindlib.uid_of var) u m, inst_map in
     List.fold_left add_context ([], Extra.IntMap.empty, inst_map) ui
 
-(** [get_x t] return the list of quantified variables [x₀; x₁; ...; xₙ] and a
-    term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
-let rec get_x : term -> term Bindlib.var list * term = fun t ->
+(** [get_x cfg t] return the list of quantified variables [x₀; x₁; ...; xₙ] and 
+    a term [b] if [t] is of the form : [∀x₀x₁xₙ. b]. *)
+let rec get_x : config -> term -> tvar list * term = fun cfg t ->
     let s, args = Term.get_args t in
     match s with
-    |Symb({sym_name = "∀"; _})     ->
-        (
+    |s when Term.is_symb cfg.symb_forall s ->
+        begin
             (* get [λ̄x, b] from [∀ (λ̄x, b)]. *)
             match List.nth args 0 with
             |Abst(_, b) ->
                 (* get the first variable [x] from [̄x]. *)
                 let x, b = Bindlib.unbind b in
                 (* get the rest of variables of [̄x]. *)
-                let x', b' = get_x b in
+                let x', b' = get_x cfg b in
                 x::x', b'
-            |_          -> assert false
-        )
-    |_                                  -> [], t
+            |_ -> assert false
+        end
+    |_ -> [], t
 
-(** [get_y t] return the existentiel variable [y] and a term [b] if [t] is of
-    the form : [∃y. b]. *)
-let get_y : term -> term Bindlib.var * term = fun t ->
+(** [get_y cfg t] return the existentiel variable [y] and a term [b] if [t] is 
+    of the form : [∃y. b]. *)
+let get_y : config -> term -> tvar * term = fun cfg t ->
     let s, args = Term.get_args t in
     match s with
-    |Symb({sym_name = "∃"; _})     ->
-        (
+    |s when Term.is_symb cfg.symb_exists s ->
+        begin
             match unfold (List.nth args 0) with
             (* return the variable [y] of the expression [∃ (λy, b)]. *)
             |Abst(_, b) -> Bindlib.unbind b
-            |_          -> assert false
-        )
-    |_                                  -> assert false
+            |_ -> assert false
+        end
+    |_ -> assert false
 
-(** [elim_hypothesis sign u f x y a pa b pb] return a proof of [b] without the
+(** [elim_hypothesis cfg u f x y a pa b pb] return a proof of [b] without the
     hypothesis [h]. if Γ,h: (u/x, fu/y)a ⊢ pb : b and Γ ⊢ pa : a return Γ ⊢
     pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb) : b *)
 let elim_hypothesis :
-    Sign.t -> tvar -> term list -> sym -> term Bindlib.var list ->
-    term Bindlib.var -> term -> term -> term -> term -> term =
-    fun sign h u f x y a pa b pb ->
-    let cfg = get_config sign in
+    config -> tvar -> term list -> sym -> tvar list -> tvar -> term -> term 
+    -> term -> term -> term = fun cfg h u f x y a pa b pb ->
     (* create a new variable [z]. *)
     let z = Term.new_tvar "z" in
     (* build the term [f ̄u]. *)
@@ -321,19 +324,19 @@ let elim_hypothesis :
     let z_lambda = mk_Abst(iota, 
         Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
-    let ndsig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded  in (* IMPROVE WITH BUILTINS *)
+    let ndsig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded in (* IMPROVE WITH BUILTINS *)
     let ex_E = Sign.find ndsig "∃E" in (* IMPROVE WITH BUILTINS *)
     let applied_pa = Term.add_args pa u in
     let applied_a = mk_Abst(iota, 
         Bindlib.unbox (Bindlib.bind_var z (lift huz))) in
             Term.add_args (mk_Symb ex_E) 
-                [applied_a; applied_pa; get_prop sign b; z_lambda]
+                [applied_a; applied_pa; get_prop cfg b; z_lambda]
 
 (** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
-let get_prod : term -> term Bindlib.var -> term * term = fun t x ->
+let get_prod : term -> tvar -> term * term = fun t x ->
     match unfold t with
     |Prod(u, v) -> u, Bindlib.subst v (mk_Vari x)
-    |_          -> assert false
+    |_ -> assert false
 
 (** [find_term t l] find the term [t] in the list [l = (t₀ : x₀); ...; (tₙ : xₙ)] 
     and return [x]. *)
@@ -342,79 +345,80 @@ let find_term : term -> (term * tvar) list -> tvar = fun t l ->
         snd (List.find (fun (x, _) -> Eval.eq_modulo [] t x) l)
     with Not_found -> assert false
 
-let get_term_context    = fun (_, x, _) -> x
-let get_var_context     = fun (v, _, _) -> v
+let get_term_context = fun (_, x, _) -> x
+let get_var_context = fun (v, _, _) -> v
 
-(** [check_bottom t] checks if [t] has the form [ϵ ⊥]. *)
-let check_bottom : term -> bool = fun t ->
+(** [check_bottom cfg t] checks if [t] has the form [ϵ ⊥]. *)
+let check_bottom : config -> term -> bool = fun cfg t ->
     match unfold t with
-    |Appl(Symb({sym_name = "ϵ"; _}), Symb({sym_name = "⊥"; _})) -> true
-    |_                                                          -> false
+    |Appl(eps, bot) 
+        when Term.is_symb cfg.symb_proof eps && Term.is_symb cfg.symb_bot bot
+            -> true
+    |_ -> false
 
-(** [intro_axioms ctxt proof formula] introduces all hypotheses until we get
+(** [intro_axioms cfg ctxt proof formula] introduces all hypotheses until we get
     [ϵ ⊥]. *)
-let rec intro_axioms : ctxt -> term -> term -> ctxt * term * term = 
-    fun ctxt proof formula ->
+let rec intro_axioms : config -> ctxt -> term -> term -> ctxt * term * term = 
+    fun cfg ctxt proof formula ->
     (* if the current formula is [ϵ ⊥].*)
-    if check_bottom formula then
+    if check_bottom cfg formula then
         (* return the current proof with the same context *)
         ctxt, proof, formula
     else
         (* otherwise we eliminate one lambda from the proof *)
         match proof, formula with
-        |Abst(a, b), Prod(_, b')    ->
+        |Abst(a, b), Prod(_, b') ->
             let x, b = Bindlib.unbind b in
             let _, b' = Bindlib.unbind b' in
-            intro_axioms ((x, a, None)::ctxt) b b'
-        |_                          -> 
+            intro_axioms cfg ((x, a, None)::ctxt) b b'
+        |_ -> 
             assert false
 
-let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term 
+let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term 
                   -> sym -> term -> ctxt * term 
                   * term list Extra.IntMap.t * ((term * tvar) list) =
-  fun sign inst_map context axiom formula proof f pa ->
-  let cfg = get_config sign in
+  fun cfg inst_map context axiom formula proof f pa ->
   (* get the variables x̅. *)
-  let x, a = get_x axiom in
+  let x, a = get_x cfg axiom in
   (* get the variable y. *)
-  let y, a = get_y a in
+  let y, a = get_y cfg a in
   (* the main function. *)
   let rec deskolem : 
     (term * tvar) list -> ctxt -> term -> term 
     -> ctxt * term * term list Extra.IntMap.t * ((term * tvar) list) =
     fun inst_map context formula proof ->
     (* if the current formula has the form [ϵ A]. *)
-    if check_epsilon formula then
+    if check_epsilon cfg formula then
       begin
         (* calculate [U̅ᵢ]. *)
-        let u = get_ui f [] [] (unfold formula) in
+        let u = skolem_args f [] [] (unfold formula) in
         let add_ui u alpha =
           try
             (* don't add ∀ x̅, (f x̅ / y) A. *)
             let gtc_alpha = get_term_context alpha in
             try
-              get_ui f [] u gtc_alpha
-            with Failure _ -> get_ui f [] u gtc_alpha
+              skolem_args f [] u gtc_alpha
+            with Failure _ -> skolem_args f [] u gtc_alpha
           with Not_Proof(_) -> u in
         (* calculate [U̅ᵢ] of the context. *)
         let u = List.fold_left add_ui u context in
         (* sort [U̅ᵢ] by size. *)
         let u = List.sort (fun x y -> size_args f x - size_args f y) u in
         (* construct Δ. *)
-        let delta, mu, inst_map' = construct_delta sign inst_map f a x y u in
+        let delta, mu, inst_map' = construct_delta cfg inst_map f a x y u in
         (* check if [formula] is a total instance of [a]. *)
         match is_total_instance 
             (mk_Appl (mk_Symb cfg.symb_proof, a)) formula f x y 
         with
         (* if it is a total instance. *)
-        | Some(_)   ->
+        | Some(_) ->
             (* find in Δ the correspanding variable. *)
            let alpha =
              try List.find
                    (fun (_, x, _) -> Eval.eq_modulo [] formula x) delta
              with Not_found -> assert false in
            delta, mk_Vari (get_var_context alpha), mu, inst_map'
-        | None      ->
+        | None ->
             (* otherwise *)
            let handle_apps head type_head args = 
              let end_type,
@@ -462,7 +466,7 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term
                 let u = Extra.IntMap.find 
                     (alpha |> get_var_context |> Bindlib.uid_of) new_mu in
                 let fu = Term.add_args (mk_Symb f) u in
-                elim_hypothesis sign (find_term fu new_inst_map) u f x y a pa 
+                elim_hypothesis cfg (find_term fu new_inst_map) u f x y a pa 
                     formula pb in
              Infer.conv [] formula end_type;
              (delta, List.fold_left elim_hyp new_proof hypotheses, mu, 
@@ -493,17 +497,17 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term
                let u = Extra.IntMap.find 
                 (alpha |> get_var_context |> Bindlib.uid_of) new_mu in
                let fu = Term.add_args (mk_Symb f) u in
-               elim_hypothesis sign (find_term fu new_inst_map) 
+               elim_hypothesis cfg (find_term fu new_inst_map) 
                 u f x y a pa formula pb
              in
              delta, List.fold_left elim_hyp proof_b hypotheses, mu, new_inst_map
-           | Symb(s) as head, args  -> (* CAS D'UNE APPLICATION *)
+           | Symb(s) as head, args -> (* CAS D'UNE APPLICATION *)
               let type_h = !(s.sym_type) in
               handle_apps head type_h args
-           | Vari(x) as head, args  ->
+           | Vari(x) as head, args ->
               let type_x = Ctxt.type_of x context in
               handle_apps head type_x args
-           |_      -> assert false
+           |_ -> assert false
       end
     else
       ([], proof, Extra.IntMap.empty, inst_map)
@@ -512,14 +516,14 @@ let deskolemize : Sign.t -> (term * tvar) list -> ctxt -> term -> term -> term
 
 let main : Sign.t -> unit = fun sign ->
     let cfg = get_config sign in
-    let a = get_prop sign !(cfg.symb_Axiom.sym_type) in
+    let a = get_prop cfg !(cfg.symb_Axiom.sym_type) in
     let b = cleanup (!(cfg.symb_Formula.sym_type)) in
     (* Remove all lambdas from the proof and add all product (after removing 
         them) in the context. *)
     let context, proof, formula =   
-        intro_axioms [] (Eval.whnf [] (mk_Symb cfg.symb_Formula)) b in
+        intro_axioms cfg [] (Eval.whnf [] (mk_Symb cfg.symb_Formula)) b in
     let _, proof', _, _ = 
-        deskolemize sign [] context a formula (Eval.snf context proof) 
+        deskolemize cfg [] context a formula (Eval.snf context proof) 
             cfg.symb_Skolem (mk_Symb cfg.symb_Axiom) in
     Common.Console.out 1 "%a@." Print.pp_term proof';
     let oc = Format.formatter_of_out_channel (open_out "test.lp") in
