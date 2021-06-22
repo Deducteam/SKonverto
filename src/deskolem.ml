@@ -8,30 +8,33 @@ exception Not_ProofS of term
 
 (** Builtin configuration. *)
 type config =
-  { symb_Skolem     : sym
-  ; symb_Axiom      : sym
-  ; symb_Formula    : sym
-  ; symb_imp        : sym
-  ; symb_forall     : sym
-  ; symb_exists     : sym
-  ; symb_tau        : sym
-  ; symb_bot        : sym
-  ; symb_proof      : sym }
+  { symb_Skolem      : sym
+  ; symb_Axiom       : sym
+  ; symb_Formula     : sym
+  ; symb_imp         : sym
+  ; symb_forall      : sym
+  ; symb_exists      : sym
+  ; symb_tau         : sym
+  ; symb_bot         : sym
+  ; symb_proof       : sym
+  ; symb_exists_elim : sym }
 
 (** [get_config sign] build the configuration using [sign]. *)
 let get_config : Sign.t -> config = fun sign ->
   let fol_sig = Common.Path.(Map.find (of_string "logic.fol")) !Sign.loaded in
   let zen_sig = Common.Path.(Map.find (of_string "logic.zen")) !Sign.loaded in
+  let nd_sig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded in
   let builtin name = Extra.StrMap.find name !(sign.sign_builtins) in
-  { symb_Skolem     = builtin "Skolem" 
-  ; symb_Axiom      = builtin "Axiom" 
-  ; symb_Formula    = builtin "Formula" 
-  ; symb_imp        = builtin "imp"  
-  ; symb_forall     = Sign.find fol_sig "∀" (* DISCUSS *)
-  ; symb_exists     = Sign.find fol_sig "∃" (* DISCUSS *)
-  ; symb_tau        = Sign.find zen_sig "τ" (* DISCUSS *)
-  ; symb_proof      = builtin "proof" 
-  ; symb_bot        = Sign.find fol_sig "⊥" (* DISCUSS *) }
+  { symb_Skolem      = builtin "Skolem" 
+  ; symb_Axiom       = builtin "Axiom" 
+  ; symb_Formula     = builtin "Formula" 
+  ; symb_imp         = builtin "imp"  
+  ; symb_forall      = Sign.find fol_sig "∀" (* DISCUSS *)
+  ; symb_exists      = Sign.find fol_sig "∃" (* DISCUSS *)
+  ; symb_tau         = Sign.find zen_sig "τ" (* DISCUSS *)
+  ; symb_proof       = builtin "proof" 
+  ; symb_bot         = Sign.find fol_sig "⊥" (* DISCUSS *)
+  ; symb_exists_elim = Sign.find nd_sig "∃E" (* DISCUSS *) }
 
 (** [subst_inv fu x t] replaces all the subterms [fu] by [x] in the term [t]. *)
 let subst_inv : term -> tvar -> term -> term = fun fu x ->
@@ -324,12 +327,10 @@ let elim_hypothesis :
     let z_lambda = mk_Abst(iota, 
         Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
     (* pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb). *)
-    let ndsig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded in (* IMPROVE WITH BUILTINS *)
-    let ex_E = Sign.find ndsig "∃E" in (* IMPROVE WITH BUILTINS *)
     let applied_pa = Term.add_args pa u in
     let applied_a = mk_Abst(iota, 
         Bindlib.unbox (Bindlib.bind_var z (lift huz))) in
-            Term.add_args (mk_Symb ex_E) 
+            Term.add_args (mk_Symb cfg.symb_exists_elim) 
                 [applied_a; applied_pa; get_prop cfg b; z_lambda]
 
 (** [get_prod t x] return [(u, v)] if [t] is of the form [∀ (x : u), v]. *)
