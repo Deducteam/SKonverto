@@ -22,7 +22,7 @@ jobs:
       with:
         path: ~/.opam
         key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
-    -name: setting up opam...
+    - name: setting up opam...
       uses: avsm/setup-ocaml@v1
       with:
         ocaml-version: ${{ matrix.ocaml-version }}
