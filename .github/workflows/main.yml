@@ -10,16 +10,26 @@ jobs:
     name: Build
     runs-on: ${{ matrix.operating-system }}
     strategy:
+      fail-fast: false
       matrix:
         operating-system: [macos-latest, ubuntu-latest]
         ocaml-version: [4.07.1, 4.08.1, 4.09.1, 4.10.2, 4.11.1, 4.12.0]
     steps:
-    - uses: actions/checkout@master
-    - uses: avsm/setup-ocaml@master
+    - name: checking out skonverto repo...
+      uses: actions/checkout@v2
+    - name: recoverin cached opam files...
+      uses: actions/cache@v2
+      with:
+        path: ~/.opam
+        key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
+    -name: setting up opam...
+      uses: avsm/setup-ocaml@v1
       with:
         ocaml-version: ${{ matrix.ocaml-version }}
     - name: Installing the last version of lambdapi
       run: |
+        opam update
+        opam upgrade
         opam install dune bindlib timed menhir pratter yojson cmdliner why3 alcotest alt-ergo odoc
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
     - name: main

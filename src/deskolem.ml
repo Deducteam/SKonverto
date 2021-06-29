@@ -2,39 +2,13 @@ open Core
 open! Lplib
 open Term
 open Timed
+open ConfigBuiltin 
 
 exception Not_Proof of term
 exception Not_ProofS of term
 
-(** Builtin configuration. *)
-type config =
-  { symb_Skolem      : sym
-  ; symb_Axiom       : sym
-  ; symb_Formula     : sym
-  ; symb_imp         : sym
-  ; symb_forall      : sym
-  ; symb_exists      : sym
-  ; symb_tau         : sym
-  ; symb_bot         : sym
-  ; symb_proof       : sym
-  ; symb_exists_elim : sym }
-
-(** [get_config sign] build the configuration using [sign]. *)
-let get_config : Sign.t -> config = fun sign ->
-  let fol_sig = Common.Path.(Map.find (of_string "logic.fol")) !Sign.loaded in
-  let zen_sig = Common.Path.(Map.find (of_string "logic.zen")) !Sign.loaded in
-  let nd_sig = Common.Path.(Map.find (of_string "logic.nd")) !Sign.loaded in
-  let builtin name = Extra.StrMap.find name !(sign.sign_builtins) in
-  { symb_Skolem      = builtin "Skolem" 
-  ; symb_Axiom       = builtin "Axiom" 
-  ; symb_Formula     = builtin "Formula" 
-  ; symb_imp         = builtin "imp"  
-  ; symb_forall      = Sign.find fol_sig "∀" (* DISCUSS *)
-  ; symb_exists      = Sign.find fol_sig "∃" (* DISCUSS *)
-  ; symb_tau         = Sign.find zen_sig "τ" (* DISCUSS *)
-  ; symb_proof       = builtin "proof" 
-  ; symb_bot         = Sign.find fol_sig "⊥" (* DISCUSS *)
-  ; symb_exists_elim = Sign.find nd_sig "∃E" (* DISCUSS *) }
+let signature_name = Stdlib.ref ""
+let package_name = Stdlib.ref ""
 
 (** [subst_inv fu x t] replaces all the subterms [fu] by [x] in the term [t]. *)
 let subst_inv : term -> tvar -> term -> term = fun fu x ->
@@ -210,7 +184,7 @@ let is_total_instance :
     term -> term -> sym -> tvar list -> tvar -> term list option = 
     fun a b f x y ->
     let fx = Term.add_args (mk_Symb f) (List.map (fun x -> mk_Vari x) x) in
-    (* Calculate the strong normal form before adding the TRef since we can not
+    (* calculate the strong normal form before adding the TRef since we can not
         do it with TRef. *)
     let a = Eval.snf [] a in
     (* replace [y] with [fx] in [a] *)
@@ -321,8 +295,7 @@ let elim_hypothesis :
     let h_lambda = mk_Abst(mk_Appl(mk_Symb cfg.symb_proof, huz), 
         Bindlib.unbox (Bindlib.bind_var h (lift fresh_pb))) in
     
-    let folsig = Common.Path.(Map.find (of_string "logic.fol")) !Sign.loaded in
-    let iota = mk_Symb (Sign.find folsig "κ") in (* IMPROVE WITH BUILTINS *)
+    let iota = mk_Symb cfg.symb_iota in 
     (* λ (z : iota), λ (h : huz), (z / fu) pb. *)
     let z_lambda = mk_Abst(iota, 
         Bindlib.unbox (Bindlib.bind_var z (lift h_lambda))) in
@@ -418,6 +391,7 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
              try List.find
                    (fun (_, x, _) -> Eval.eq_modulo [] formula x) delta
              with Not_found -> assert false in
+             (* return the found variable. *)
            delta, mk_Vari (get_var_context alpha), mu, inst_map'
         | None ->
             (* otherwise *)
@@ -431,12 +405,14 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
                  (fun (type_u, inst_map, delta_u, mu_u, new_u) arg ->
                    let type_v, codomain =
                      match Eval.whnf [] type_u with
-                       Prod(x,y) -> x, y
+                       Prod(x, y) -> x, y
                      | _ -> assert false
                    in
                    (* calculate Δᵥ *)
                    let delta_v, new_v, mu_v, new_inst_map =
                      deskolem inst_map context type_v arg in
+                   (* check if an element does not exist in Δᵤ and return the
+                    elements that are not in Δᵤ *)
                    let exist_delta = fun d y ->
                      if List.exists (fun x -> Eval.eq_modulo [] 
                         (get_term_context x) (get_term_context y)) delta_u then
@@ -463,35 +439,45 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
              let hypotheses = List.filter not_exist_env new_delta in
              let hypotheses = List.sort (fun (_,t,_) (_,v,_) ->
                                   compare (size v) (size t)) hypotheses in
+             (* eliminate the hypothesis [alpha] from the proof [pb]. *)
              let elim_hyp = fun pb alpha ->
                 let u = Extra.IntMap.find 
                     (alpha |> get_var_context |> Bindlib.uid_of) new_mu in
                 let fu = Term.add_args (mk_Symb f) u in
+                (* return the new proof without the hypothesis [alpha] *)
                 elim_hypothesis cfg (find_term fu new_inst_map) u f x y a pa 
                     formula pb in
              Infer.conv [] formula end_type;
+             (* eliminate all the hypothesis of Δ *)
              (delta, List.fold_left elim_hyp new_proof hypotheses, mu, 
                 new_inst_map)
            in
+           (* calculate the whnf of the proof term. *)
            let proof' = Eval.whnf [] proof in
            match Term.get_args (unfold proof') with
-           |Vari(_), []             ->
+           |Vari(_), [] ->
+             (* return the same proof if it is a variable. *)
              delta, proof', mu, inst_map'
-           |Symb(_), []             ->
+           |Symb(_), [] ->
+             (* return the same proof if it is a symbol. *)
              delta, proof', mu, inst_map'
-           |Abst(t, u), []          ->
+           |Abst(t, u), [] ->
              let (x_var, u) = Bindlib.unbind u in
              let whnf_formula = Eval.whnf [] formula in
              let t', u' = get_prod whnf_formula x_var in
+             (* add [x] to the context. *)
              let new_context = (x_var, t', None)::context in
+             (* calculate the new delta without the variable [x]. *)
              let new_delta, new_u, new_mu, new_inst_map = 
                 deskolem inst_map' new_context u' u in
+             (* get the context where there is no element of Δ *)
              let not_exist_env = fun y -> 
                 List.for_all (fun x -> not (Eval.eq_modulo [] 
                     (get_term_context x) (get_term_context y))) delta in
              let hypotheses = List.filter not_exist_env new_delta in
              let hypotheses = List.sort (fun (_,t,_) (_,v,_) ->
                                   compare (size t) (size v)) hypotheses in
+             (* get back the variable [x] to the proof term. *)
              let proof_b = mk_Abst (t, Bindlib.unbox 
                 (Bindlib.bind_var x_var (lift new_u))) in
              let elim_hyp = fun pb alpha ->
@@ -501,32 +487,42 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
                elim_hypothesis cfg (find_term fu new_inst_map) 
                 u f x y a pa formula pb
              in
+             (* eliminate the hypothesis that are not in Δ *)
              delta, List.fold_left elim_hyp proof_b hypotheses, mu, new_inst_map
-           | Symb(s) as head, args -> (* CAS D'UNE APPLICATION *)
+           | Symb(s) as head, args ->
+              (* handle the application of a symbol as the application case of 
+                the global algorithm. *)
               let type_h = !(s.sym_type) in
               handle_apps head type_h args
            | Vari(x) as head, args ->
+             (* handle the application of a variable as the application case of 
+                the global algorithm. *)
               let type_x = Ctxt.type_of x context in
               handle_apps head type_x args
            |_ -> assert false
       end
     else
+      (* if the type of the proof is not of the form [ϵ A] then return the same
+        proof term. *)
       ([], proof, Extra.IntMap.empty, inst_map)
   in
   deskolem inst_map context formula proof
 
-let main : Sign.t -> unit = fun sign ->
+let main : string -> Sign.t -> unit = fun file_name sign ->
+    (* get the config *)
     let cfg = get_config sign in
+    (* get the original axiom before deskolemization. *)
     let a = get_prop cfg !(cfg.symb_Axiom.sym_type) in
+    (* get type of the proof. *)
     let b = cleanup (!(cfg.symb_Formula.sym_type)) in
-    (* Remove all lambdas from the proof and add all product (after removing 
+    (* remove all lambdas from the proof and add all product (after removing 
         them) in the context. *)
     let context, proof, formula =   
         intro_axioms cfg [] (Eval.whnf [] (mk_Symb cfg.symb_Formula)) b in
+    (* deskolemize the proof. *)
     let _, proof', _, _ = 
         deskolemize cfg [] context a formula (Eval.snf context proof) 
             cfg.symb_Skolem (mk_Symb cfg.symb_Axiom) in
-    Common.Console.out 1 "%a@." Print.pp_term proof';
-    let oc = Format.formatter_of_out_channel (open_out "test.lp") in
-    Stdlib.(Common.Console.out_fmt := oc);
-    Common.Console.out 1 "// Add all requires, symbols and builtins" (* IMPROVE *)
+    (* generate the new file that contains the deskolemized proof. *)
+    Proof.output file_name sign proof' Stdlib.(!signature_name) Stdlib.(!package_name)
+    

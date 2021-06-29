@@ -1,13 +1,17 @@
 open! Lplib
 
 let spec =
-  Arg.align []
+  Arg.align 
+  [
+    ("--signature", Arg.Set_string Deskolem.signature_name, "Set the name of the signtaure file");
+    ("--package", Arg.Set_string Deskolem.package_name, "Set the name of the lambdapi package")
+  ]
 
 let _ =
-  let usage = Printf.sprintf "Usage: %s [OPTIONS] [FILES]" Sys.argv.(0) in
+  let usage = Printf.sprintf "Usage: %s --signature [SIGNATURE_NAME] [FILES]" Sys.argv.(0) in
   let files = ref [] in
   Arg.parse spec (fun s -> files := s :: !files) usage;
   Common.Library.set_lib_root None;
   files := List.rev !files;
-  let process_file s = s |> Handle.Compile.compile_file |> Deskolem.main in
+  let process_file s = Deskolem.main s (s |> Handle.Compile.compile_file) in
   List.iter process_file !files
