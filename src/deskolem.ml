@@ -204,11 +204,8 @@ let is_total_instance :
             Some(List.map get_content ui_tref)
         end
     else
-        begin
-            (* return None in case that [b] is not a total instance of [a]. *)
-            None
-        end
-
+        (* return None in case that [b] is not a total instance of [a]. *)
+        None
 let count = ref 0
 
 (** [construct_delta cfg f a x y t] build the context
@@ -444,7 +441,7 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
                 let u = Extra.IntMap.find 
                     (alpha |> get_var_context |> Bindlib.uid_of) new_mu in
                 let fu = Term.add_args (mk_Symb f) u in
-                (* return the new proof without the hypothesis [alpha] *)
+                (* return the new proof without the hypothesis [alpha]. *)
                 elim_hypothesis cfg (find_term fu new_inst_map) u f x y a pa 
                     formula pb in
              Infer.conv [] formula end_type;

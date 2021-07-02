@@ -15,14 +15,14 @@ jobs:
         operating-system: [macos-latest, ubuntu-latest]
         ocaml-version: [4.07.1, 4.08.1, 4.09.1, 4.10.2, 4.11.1, 4.12.0]
     steps:
-    - name: checking out skonverto repo...
+    - name: Checking out skonverto repo...
       uses: actions/checkout@v2
-    - name: recoverin cached opam files...
+    - name: Recoverin cached opam files...
       uses: actions/cache@v2
       with:
         path: ~/.opam
         key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
-    - name: setting up opam...
+    - name: Setting up opam...
       uses: avsm/setup-ocaml@v1
       with:
         ocaml-version: ${{ matrix.ocaml-version }}
@@ -30,7 +30,11 @@ jobs:
       run: |
         opam update
         opam upgrade
-        opam install dune bindlib timed menhir pratter yojson cmdliner why3 alcotest alt-ergo odoc
-        opam pin add lambdapi https://github.com/Deducteam/lambdapi.git -y
-    - name: main
-      run: opam exec -- dune build
+        opam install dune bindlib timed menhir pratter.1.1 yojson cmdliner why3 alcotest alt-ergo odoc
+        opam pin add lambdapi https://github.com/Deducteam/lambdapi.git#0757d3b1 -y
+    - name: Compilation
+      run: |
+        opam exec -- dune build
+        make install
+    - name: Running SKonverto on an example
+      run: skonverto --signature signature --package skolem example/proof_skolem.lp 

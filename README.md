@@ -80,20 +80,12 @@ builtin "Formula" ≔ proof_example;
 builtin "SkolemizedAxiom" ≔ step_ax;
 
 // symbols of the encoding of first-order logic required to run SKonverto
-// Implication
-builtin "⇒" ≔ ⇒;
-// Forall
-builtin "∀" ≔ ∀;
-// Exists
-builtin "∃" ≔ ∃;
-// Tau
-builtin "τ" ≔ τ;
-// Epsilon
-builtin "ϵ" ≔ ϵ;
-// Bot
-builtin "⊥" ≔ ⊥;
-// Exists_elim
-builtin "∃E" ≔ ∃E;
-// Kappa
-builtin "κ" ≔ κ;
+builtin "⇒" ≔ ⇒; // Implication
+builtin "∀" ≔ ∀; // Forall
+builtin "∃" ≔ ∃; // Exists
+builtin "τ" ≔ τ; // Tau
+builtin "ϵ" ≔ ϵ; // Epsilon
+builtin "⊥" ≔ ⊥; // Bot
+builtin "∃E" ≔ ∃E; // Exists_elim
+builtin "κ" ≔ κ; // Kappa
 ```
