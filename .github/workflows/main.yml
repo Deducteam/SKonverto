@@ -26,7 +26,7 @@ jobs:
       uses: avsm/setup-ocaml@v1
       with:
         ocaml-version: ${{ matrix.ocaml-version }}
-    - name: Installing the last version of lambdapi
+    - name: Installing the version dev-0757d3b1 of lambdapi
       run: |
         opam update
         opam upgrade
@@ -34,7 +34,7 @@ jobs:
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git#0757d3b1 -y
     - name: Compilation
       run: |
-        opam exec -- dune build
+        make
         make install
     - name: Running SKonverto on an example
       run: skonverto --signature signature --package skolem example/proof_skolem.lp 
