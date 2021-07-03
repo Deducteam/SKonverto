@@ -34,6 +34,7 @@ jobs:
         opam pin add lambdapi https://github.com/Deducteam/lambdapi.git#0757d3b1 -y
     - name: Compilation
       run: |
+        eval $(opam env)
         make
         make install
     - name: Running SKonverto on an example
