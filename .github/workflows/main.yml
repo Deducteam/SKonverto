@@ -26,6 +26,6 @@ jobs:
         run: |
           opam update
           opam upgrade
-          opam install lambdapi 2.2.0
+          opam install lambdapi.2.2.0
       - name: main...
         run: opam exec -- dune build
