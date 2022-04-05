@@ -34,7 +34,7 @@ jobs:
           eval $(opam env)
           make
           make install
-      - name: testing...
-        run: |
-          eval $(opam env)
-          skonverto --signature signature --package skolem example/proof_skolem.lp
+      # - name: testing...
+      #   run: |
+      #     eval $(opam env)
+      #     skonverto --signature signature --package skolem example/proof_skolem.lp
