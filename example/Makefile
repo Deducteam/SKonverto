@@ -1,20 +1,19 @@
-.POSIX:
-SRC = 
-OBJ = $(SRC:.lp=.lpo)
-.SUFFIXES:
+SRC = $(wildcard *.lp)
+OBJ = $(SRC:%.lp=%.lpo)
 
-all: $(OBJ)
+default:
+	lambdapi check $(SRC)
 
-install: $(OBJ) lambdapi.pkg
-	lambdapi install lambdapi.pkg $(OBJ) $(SRC)
+lpo: $(OBJ)
 
-uninstall:
-	lambdapi uninstall lambdapi.pkg
+$(OBJ)&: $(SRC)
+	lambdapi check -c $^
 
 clean:
 	rm -f $(OBJ)
 
-.SUFFIXES: .lp .lpo
+install: lpo
+	lambdapi install lambdapi.pkg $(SRC) $(OBJ)
 
-.lp.lpo:
-	lambdapi check --gen-obj $<
+uninstall:
+	lambdapi uninstall lambdapi.pkg

@@ -1,4 +1,4 @@
-require open logic.fol logic.nd logic.nd_eps logic.zen;
+require open Logic.Zenon.FOL Logic.Zenon.ND Logic.Zenon.ND_eps Logic.Zenon.zen;
 
 // Signature
 require open skolem.signature;
