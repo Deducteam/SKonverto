@@ -1,20 +1,31 @@
-name: SKonverto CI
-on: [push]
-
+on:
+  pull_request:
+    types: [opened, synchronize, edited, reopened]
+  push:
+  workflow_dispatch:
 jobs:
-  run:
-    name: Build
-    runs-on: ${{ matrix.operating-system }}
+  build:
     strategy:
+      fail-fast: false
       matrix:
-        operating-system: [macos-latest, ubuntu-latest]
         ocaml-version: [4.08.1, 4.09.1, 4.10.2, 4.11.2, 4.12.1, 4.13.1, 4.14.0]
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@master
-    - uses: avsm/setup-ocaml@master
-      with:
-        ocaml-version: ${{ matrix.ocaml-version }}
-    - name: Installing the last version of lambdapi
-      run: opam install lambdapi 2.2.0
-    - name: main
-      run: opam exec -- dune build
+      - name: checking out repo...
+        uses: actions/checkout@v2
+      - name: recovering cached opam files...
+        uses: actions/cache@v2
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
+      - name: setting up opam...
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+      - name: installing dependencies...
+        run: |
+          opam update
+          opam upgrade
+          opam install lambdapi 2.2.0
+      - name: main...
+        run: opam exec -- dune build
