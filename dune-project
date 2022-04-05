@@ -3,7 +3,7 @@
 (generate_opam_files true)
 
 (name skonverto)
-(source (github Deducteam/lambdapi))
+(source (github Deducteam/SKonverto))
 (authors "Deducteam")
 (maintainers "dedukti-dev@inria.fr")
 (license CECILL-2.1)
