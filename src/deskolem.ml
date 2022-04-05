@@ -35,7 +35,9 @@ let subst_inv : term -> tvar -> term -> term = fun fu x ->
     | TEnv _
     | Wild
     | LLet _
-    | TRef _ -> assert false (* is not handled in the encoding. *)
+    | TRef _
+    | Plac _
+      -> assert false (* is not handled in the encoding. *)
   in subst
 
 (** [frozen l t] checks if a term [t] contains one of the variables of [l]. *)
@@ -104,6 +106,7 @@ let rec skolem_args : sym -> tvar list  -> term list list -> term
     | TEnv _ -> assert false
     | Wild   -> assert false
     | LLet _ -> assert false
+    | Plac _ -> assert false
     | TRef _ -> assert false (* is not handled in the encoding. *)
 
 (** [size t] return the size of the term [t]. *)
@@ -194,7 +197,7 @@ let is_total_instance :
     let nf_a = a' in
     let nf_b = Eval.snf [] b in
     (* if the normal form of [a] ≡ the normal form of [b]. *)
-    if Handle.Rewrite.eq [] nf_a nf_b then
+    if Handle.Rewrite.matches nf_a nf_b then
         begin
             (* get the arguments of [a] where the equivalence is satisfied. *)
             let ui_tref = Array.to_list x_tref in
@@ -393,7 +396,7 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
         | None ->
             (* otherwise *)
            let handle_apps head type_head args = 
-             let end_type,
+             let _end_type,
                  new_inst_map,
                  new_delta,
                  new_mu,
@@ -444,7 +447,7 @@ let deskolemize : config -> (term * tvar) list -> ctxt -> term -> term -> term
                 (* return the new proof without the hypothesis [alpha]. *)
                 elim_hypothesis cfg (find_term fu new_inst_map) u f x y a pa 
                     formula pb in
-             Infer.conv [] formula end_type;
+             (*Infer.conv [] formula end_type;*)
              (* eliminate all the hypothesis of Δ *)
              (delta, List.fold_left elim_hyp new_proof hypotheses, mu, 
                 new_inst_map)
@@ -522,4 +525,3 @@ let main : string -> Sign.t -> unit = fun file_name sign ->
             cfg.symb_Skolem (mk_Symb cfg.symb_Axiom) in
     (* generate the new file that contains the deskolemized proof. *)
     Proof.output file_name sign proof' Stdlib.(!signature_name) Stdlib.(!package_name)
-    

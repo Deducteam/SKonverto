@@ -31,14 +31,14 @@ let output : string -> Sign.t -> term -> string -> string -> unit =
     Common.Console.out 1 "@.";
     (* print the axioms. *)
     Common.Console.out 1 "// Axioms@.";
-    Extra.StrMap.iter (fun _ (s,_) -> if is_axiom s.sym_name cfg.symb_Skolemized.sym_name then Common.Console.out 1 "constant symbol %s : %a;@." s.sym_name Print.pp_term !(s.sym_type)) !(sign.sign_symbols);
+    Extra.StrMap.iter (fun _ s -> if is_axiom s.sym_name cfg.symb_Skolemized.sym_name then Common.Console.out 1 "constant symbol %s : %a;@." s.sym_name Print.term !(s.sym_type)) !(sign.sign_symbols);
     Common.Console.out 1 "@.";
     (* print the original axiom. *)
     Common.Console.out 1 "// The original axiom before skolemization@.";
-    Common.Console.out 1 "constant symbol %s : %a;@." cfg.symb_Axiom.sym_name Print.pp_term !(cfg.symb_Axiom.sym_type);
+    Common.Console.out 1 "constant symbol %s : %a;@." cfg.symb_Axiom.sym_name Print.term !(cfg.symb_Axiom.sym_type);
     Common.Console.out 1 "@.";
     (* print the deskolemized proof. *)
     Common.Console.out 1 "// Deskolemized proof@.";
     Common.Console.out 1 "@.symbol proof_deskolemized : ϵ ⊥@.";
     Common.Console.out 1 " ≔ @.";
-    Common.Console.out 1 "%a;@." Print.pp_term proof;
+    Common.Console.out 1 "%a;@." Print.term proof;

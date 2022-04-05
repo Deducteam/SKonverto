@@ -1,4 +1,3 @@
-name: SKonverto CI
 on:
   pull_request:
     types: [opened, synchronize, edited, reopened]
@@ -6,38 +5,36 @@ on:
   workflow_dispatch:
 
 jobs:
-  run:
-    name: Build
-    runs-on: ${{ matrix.operating-system }}
+  build:
     strategy:
       fail-fast: false
       matrix:
-        operating-system: [macos-latest, ubuntu-latest]
-        ocaml-version: [4.07.1, 4.08.1, 4.09.1, 4.10.2, 4.11.1, 4.12.0]
+        ocaml-version: [4.08.1, 4.09.1, 4.10.2, 4.11.2, 4.12.1, 4.13.1, 4.14.0]
+    runs-on: ubuntu-latest
     steps:
-    - name: Checking out skonverto repo...
-      uses: actions/checkout@v2
-    - name: Recoverin cached opam files...
-      uses: actions/cache@v2
-      with:
-        path: ~/.opam
-        key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
-    - name: Setting up opam...
-      uses: avsm/setup-ocaml@v1
-      with:
-        ocaml-version: ${{ matrix.ocaml-version }}
-    - name: Installing the version dev-0757d3b1 of lambdapi
-      run: |
-        opam update
-        opam upgrade
-        opam install dune bindlib timed menhir pratter.1.1 yojson cmdliner why3 alcotest alt-ergo odoc
-        opam pin add lambdapi https://github.com/Deducteam/lambdapi.git#0757d3b1 -y
-    - name: Compilation
-      run: |
-        eval $(opam env)
-        make
-        make install
-    - name: Running SKonverto on an example
-      run: |
-        eval $(opam env)
-        skonverto --signature signature --package skolem example/proof_skolem.lp 
+      - name: checking out repo...
+        uses: actions/checkout@v2
+      - name: recovering cached opam files...
+        uses: actions/cache@v2
+        with:
+          path: ~/.opam
+          key: ${{ runner.os }}-ocaml-${{ matrix.ocaml-version }}
+      - name: setting up opam...
+        uses: avsm/setup-ocaml@v1
+        with:
+          ocaml-version: ${{ matrix.ocaml-version }}
+      - name: installing dependencies...
+        run: |
+          opam update
+          opam upgrade
+          opam pin add -n -k path skonverto .
+          opam install --deps-only -d -t skonverto
+      - name: compiling...
+        run: |
+          eval $(opam env)
+          make
+          make install
+      - name: testing...
+        run: |
+          eval $(opam env)
+          skonverto --signature signature --package skolem example/proof_skolem.lp

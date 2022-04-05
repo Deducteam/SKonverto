@@ -1,5 +1,5 @@
 # SKonverto
-SKonverto is a tool that transforms Lambdapi proofs containing Skolem symbols 
+SKonverto is a tool that transforms [Lambdapi](https://github.com/Deducteam/lambdapi) proofs containing Skolem symbols 
 into proofs without these symbols. It is based on the approach used in 
 (http://www.lsv.fr/~dowek/Publi/skolem.pdf).
 
