@@ -14,7 +14,7 @@ uninstall:
 	$(DUNE) uninstall
 
 clean:
-	-rm -r _build/
+	-rm -rf _build/
 
 clean-examples:
 	find examples -name "*.lpo"|xargs rm

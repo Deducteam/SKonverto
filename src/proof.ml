@@ -23,7 +23,7 @@ let output : string -> Sign.t -> term -> string -> string -> unit =
     let oc = Format.formatter_of_out_channel (open_out file_name) in
     Stdlib.(Common.Console.out_fmt := oc);
     (* print the required modules. *)
-    Common.Console.out 1 "require open logic.fol logic.nd logic.nd_eps logic.zen;@.";
+    Common.Console.out 1 "require open Logic.Zenon.FOL Logic.Zenon.ND Logic.Zenon.ND_eps Logic.Zenon.zen;@.";
     Common.Console.out 1 "@.";
     (* print the required signature. *)
     Common.Console.out 1 "// Signature@.";
