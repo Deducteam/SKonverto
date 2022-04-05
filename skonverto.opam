@@ -4,7 +4,7 @@ author: ""
 homepage: ""
 bug-reports: ""
 license: ""
-dev-repo: "git+https://github.com/Deducteam/de-skolemizer.git"
+dev-repo: "git+https://github.com/Deducteam/SKonverto.git"
 depends: [
   "ocaml"
   "dune"
