@@ -6,8 +6,8 @@ description:
 maintainer: ["dedukti-dev@inria.fr"]
 authors: ["Deducteam"]
 license: "CECILL-2.1"
-homepage: "https://github.com/Deducteam/lambdapi"
-bug-reports: "https://github.com/Deducteam/lambdapi/issues"
+homepage: "https://github.com/Deducteam/SKonverto"
+bug-reports: "https://github.com/Deducteam/SKonverto/issues"
 depends: [
   "dune" {>= "2.7"}
   "lambdapi" {>= "2.1.0"}
@@ -27,4 +27,4 @@ build: [
     "@doc" {with-doc}
   ]
 ]
-dev-repo: "git+https://github.com/Deducteam/lambdapi.git"
+dev-repo: "git+https://github.com/Deducteam/SKonverto.git"
