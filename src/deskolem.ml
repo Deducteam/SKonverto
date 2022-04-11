@@ -280,9 +280,11 @@ let get_y : config -> term -> tvar * term = fun cfg t ->
     pa u b (λ (z : iota), λ (huz : (u/x, z/y)a), (z / fu) pb) : b *)
 let elim_hypothesis :
     config -> tvar -> term list -> sym -> tvar list -> tvar -> term -> term 
-    -> term -> term -> term = fun cfg h u f x y a pa b pb ->
+    -> term -> term -> term =
+  let k = ref (-1) in
+  fun cfg h u f x y a pa b pb ->
     (* create a new variable [z]. *)
-    let z = Term.new_tvar "z" in
+    let z = incr k; Term.new_tvar ("z" ^ string_of_int !k) in
     (* build the term [f ̄u]. *)
     let fu = Term.add_args (mk_Symb f) u in
     (* (z / fu) pb. *)
