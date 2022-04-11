@@ -13,5 +13,6 @@ let _ =
   Arg.parse spec (fun s -> files := s :: !files) usage;
   Common.Library.set_lib_root None;
   files := List.rev !files;
-  let process_file s = Deskolem.main s (s |> Handle.Compile.compile_file) in
+  let process_file s =
+    Deskolem.main s (Handle.Compile.compile_file ~force:true s) in
   List.iter process_file !files

@@ -6,9 +6,10 @@ into proofs without these symbols. It is based on the approach used in
 
 ## Installation
 To install `SKonverto`, you will need to install all these dependencies:
-- `dune`,
-- `lambdapi` (https://github.com/Deducteam/lambdapi),
-- `OCaml >= 4.07.1`.
+- `OCaml >= 4.07.1`
+- `dune`
+- [lambdapi development version](https://github.com/Deducteam/lambdapi)
+- [lambdapi-logics development version](https://github.com/Deducteam/lambdapi-logics)
 
 ### Compilation
 ```bash
@@ -17,6 +18,7 @@ To install `SKonverto`, you will need to install all these dependencies:
     make
     make install
 ```
+
 ## Use
 ```bash
     skonverto --signature [NAME] --package [NAME] [FILE]
@@ -45,3 +47,10 @@ The `lambdapi` file must follow these instructions:
 ### Example
 
 See [example](https://github.com/Deducteam/SKonverto/blob/master/example/proof_skolem.lp).
+
+```
+make
+cd example
+dune exec -- skconverto --package skolem --signature signature proof_skolem.lp # generates proof_skolem_deskolemized.lp
+lambdapi check proof_skolem_deskolemized.lp
+```
