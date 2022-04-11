@@ -28,7 +28,7 @@ jobs:
           opam repository add lambdapi https://github.com/deducteam/opam-lambdapi-repository.git
           opam update
           opam pin -n --dev-repo lambdapi
-          opam pin -n --dev-repo lambdapi-logics
+          opam pin -n --dev-repo lambdapi-logic
           opam upgrade
           opam pin add -n -k path skonverto .
           opam install --deps-only -d -t skonverto
